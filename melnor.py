@@ -1,39 +1,16 @@
-# import pygatt
-
-# adapter = pygatt.GATTToolBackend()
-
-# # adapter = pygatt.BGAPIBackend()
-
-# try:
-#     adapter.start()
-#     device = adapter.connect("58:93:D8:AC:9F:2A")
-#     value = device.char_read("a1e8f5b1-696b-4e4c-87c6-69dfe0b0093b")
-# finally:
-#     adapter.stop()
-
-# from bluetooth.ble import DiscoveryService
-
-# service = DiscoveryService()
-# devices = service.discover(2)
-
-# for address, name in devices.items():
-#     print("name: {}, address: {}".format(name, address))
-
-import base64
-import binascii
 import datetime
 from time import sleep, time
+
+from melnor_bt.parser.battery import get_batt_val
 
 try:
     import zoneinfo  # type: ignore
 except ImportError:
     from backports import zoneinfo
 
-import pytz
 from bluepy import btle
-from tzlocal import get_localzone_name
 
-from melnor.constants import (
+from melnor_bt.constants import (
     BATTERY_CHARACTERISTIC_UUID,
     DEVICE_USER_NAME_CHARACTERISTIC_UUID,
     GATEWAY_ON_OFF_CHARACTERISTIC_UUID,
@@ -65,25 +42,6 @@ def timeOffset():
     return base_offset.total_seconds() - local_offset.total_seconds()  # type: ignore
 
 
-# See _getBattValue from DataUtils.java
-def get_batt_val(bytes: bytes) -> int:
-    """Converts the little endian 2 byte array to the battery life %"""
-    if (bytes[0] & 255 == 238) and (bytes[1] & 255 == 238):
-        return 0
-    else:
-        rawVal = (
-            ((bytes[0] & 255) + (bytes[1] & 255) / 256) - 2.35
-        ) * 181.81818181818187
-
-        if rawVal > 100:
-            return 100
-
-        if rawVal > 0:
-            return int(rawVal)
-
-        return int(rawVal)
-
-
 print("Connecting...")
 dev = btle.Peripheral("58:93:D8:AC:9F:2A")
 
@@ -99,7 +57,7 @@ print(int.from_bytes(updated.read(), "big"))
 
 val = dev.getCharacteristics(uuid=BATTERY_CHARACTERISTIC_UUID)[0].read()
 print(f"Battery life: {get_batt_val(val)}%")
-
+print(f"Battery life: {val}%")
 
 # test = dev.getCharacteristics(uuid="0000ec0b-0000-1000-8000-00805f9b34fb")[0].read()
 # print(f"Test: {test}")

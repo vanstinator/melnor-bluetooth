@@ -33,7 +33,7 @@ zone_byte_payload = struct.pack(
 
 
 class TestValveZone:
-    def test_update_state(self):
+    def test_zone_0_update_state(self):
         zone = Zone(0)
 
         print(zone_byte_payload)
@@ -42,6 +42,36 @@ class TestValveZone:
 
         assert zone.is_watering == True
         assert zone.manual_watering_seconds == 360
+
+    def test_zone_1_update_state(self):
+        zone = Zone(1)
+
+        print(zone_byte_payload)
+
+        zone.update_state(zone_byte_payload)
+
+        assert zone.is_watering == False
+        assert zone.manual_watering_seconds == 23
+
+    def test_zone_2_update_state(self):
+        zone = Zone(2)
+
+        print(zone_byte_payload)
+
+        zone.update_state(zone_byte_payload)
+
+        assert zone.is_watering == False
+        assert zone.manual_watering_seconds == 42
+
+    def test_zone_3_update_state(self):
+        zone = Zone(3)
+
+        print(zone_byte_payload)
+
+        zone.update_state(zone_byte_payload)
+
+        assert zone.is_watering == True
+        assert zone.manual_watering_seconds == 13
 
     def test_zone_property(self):
         zone = Zone(0)

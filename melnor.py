@@ -14,6 +14,7 @@ from melnor_bt.constants import (
     BATTERY_CHARACTERISTIC_UUID,
     DEVICE_USER_NAME_CHARACTERISTIC_UUID,
     GATEWAY_ON_OFF_CHARACTERISTIC_UUID,
+    MAX_UNSIGNED_INTEGER,
 )
 
 
@@ -59,109 +60,39 @@ val = dev.getCharacteristics(uuid=BATTERY_CHARACTERISTIC_UUID)[0].read()
 print(f"Battery life: {get_batt_val(val)}%")
 print(f"Battery life: {val}%")
 
-# test = dev.getCharacteristics(uuid="0000ec0b-0000-1000-8000-00805f9b34fb")[0].read()
-# print(f"Test: {test}")
-
-# print(
-#     binascii.b2a_hex(
-#         bytes(
-#             [
-#                 0x00,
-#                 0x01,
-#                 0x68,
-#                 0x01,
-#                 0x68,
-#                 0x00,
-#                 0x00,
-#                 0x14,
-#                 0x00,
-#                 0x00,
-#                 0x00,
-#                 0x00,
-#                 0x5A,
-#                 0x00,
-#                 0x5A,
-#                 0x00,
-#                 0x00,
-#                 0x1E,
-#                 0x00,
-#                 0x1E,
-#             ]
-#         ),
-#     ).decode("utf-8")
-# )
-
-# r = dev.getServiceByUUID("ec00")
-# for char in r.getCharacteristics():
-#     if char.uuid == DEVICE_USER_NAME_CHARACTERISTIC_UUID:
-#         d_name = char.read()
-#         print(f"Device name: {d_name}")
-# print(char.uuid)
-# print(char.read())
 
 onOff = dev.getCharacteristics(uuid=GATEWAY_ON_OFF_CHARACTERISTIC_UUID)[0]
 
-# print(onOff.getHandle())
-# dev.writeCharacteristic(
-#     handle=onOff.getHandle(),
-#     val=bytes(
-#         [
-#             0x00,
-#             0x01,
-#             0x68,
-#             0x01,
-#             0x68,
-#             0x00,
-#             0x00,
-#             0x14,
-#             0x00,
-#             0x00,
-#             0x00,
-#             0x00,
-#             0x5A,
-#             0x00,
-#             0x5A,
-#             0x00,
-#             0x00,
-#             0x1E,
-#             0x00,
-#             0x1E,
-#         ],
-#     ),
-#     withResponse=True,
-# )
-
-
-# updated = dev.getCharacteristics(uuid="ec09")[0]
-# dev.writeCharacteristic(
-#     handle=updated.getHandle(), val=curTime.to_bytes(byteorder="big", length=4)
-# )
-
-# sleep(10)
-
-# print(int.from_bytes(0x05, byteorder="big"))
-
 timeOffset()
+
+value = 360
+value2 = 20
+
+from struct import *
 
 dev.writeCharacteristic(
     handle=onOff.getHandle(),
     val=bytes(
         [
+            # Valve 1
+            0x01,  # On/Off Control bit
+            0x01,  # runtime >> 8 - seems to control default setting and runtime
+            0x68,  # runtime & 255 - seems to control default setting and runtime
+            0x01,  # runtime >> 8 - does nothing?
+            0x68,  # runtime & 255 - does nothing?
+            # Valve 2
             0x01,
-            0x01,
-            0x68,
-            0x01,
-            0x68,
-            0x00,
-            0x00,
-            0x14,
-            0x00,
-            0x00,
+            (value2 >> 8) & MAX_UNSIGNED_INTEGER,
+            value2 & MAX_UNSIGNED_INTEGER,
+            (value >> 8) & MAX_UNSIGNED_INTEGER,
+            value & MAX_UNSIGNED_INTEGER,
+            # Valve 3
             0x00,
             0x00,
             0x5A,
             0x00,
             0x5A,
+            # Valve 4
             0x00,
             0x00,
             0x1E,
@@ -188,3 +119,24 @@ dev.writeCharacteristic(
 #     print(svc)
 
 dev.disconnect()
+
+
+# import time
+# from functools import partial, wraps
+
+
+# def wrap(func):
+#     @wraps(func)
+#     async def run(*args, loop=None, executor=None, **kwargs):
+#         if loop is None:
+#             loop = asyncio.get_event_loop()
+#         pfunc = partial(func, *args, **kwargs)
+#         return await loop.run_in_executor(executor, pfunc)
+
+#     return run
+
+
+# @wrap
+# def sleep_async(delay):
+#     time.sleep(delay)
+#     return "I slept asynchronously"

@@ -1,0 +1,56 @@
+import struct
+
+from melnor_bt.parser.battery import get_batt_val
+from melnor_bt.valve import Zone
+
+zone_byte_payload = struct.pack(
+    ">20B",
+    # Zone 0
+    1,
+    1,
+    104,
+    1,
+    104,
+    # Zone 2
+    0,
+    0,
+    23,
+    0,
+    23,
+    # Zone 3
+    0,
+    0,
+    42,
+    0,
+    42,
+    # Zone 4
+    1,
+    0,
+    13,
+    0,
+    13,
+)
+
+
+class TestValveZone:
+    def test_update_state(self):
+        zone = Zone(0)
+
+        print(zone_byte_payload)
+
+        zone.update_state(zone_byte_payload)
+
+        assert zone.is_watering == True
+        assert zone.manual_watering_seconds == 360
+
+    def test_zone_property(self):
+        zone = Zone(0)
+
+        assert zone.is_watering == False
+        assert zone.manual_watering_seconds == 20 * 60
+
+        zone.is_watering = True
+        zone.manual_watering_seconds = 10
+
+        assert zone.is_watering == True
+        assert zone.manual_watering_seconds == 10

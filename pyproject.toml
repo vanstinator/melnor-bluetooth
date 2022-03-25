@@ -4,6 +4,13 @@ version = "0.1.0"
 description = "A small python library for discovery and interacting with Melnor, Aquastar, etc bluetooth water timers."
 authors = ["Justin Vanderhooft <justinvdhooft@gmail.com>"]
 
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.coverage.run]
+relative_files = true
+
 [tool.poetry.dependencies]
 python = "^3.9"
 bleak = "^0.14.2"
@@ -12,7 +19,3 @@ bleak = "^0.14.2"
 pytest = "^7.0.0"
 black = "^22.1.0"
 pytest-cov = "^3.0.0"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"

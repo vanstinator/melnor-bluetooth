@@ -1,8 +1,6 @@
 import asyncio
 import datetime
 import struct
-import sys
-from time import time
 from zoneinfo import ZoneInfo
 
 from bleak import BleakClient, BleakScanner
@@ -13,33 +11,9 @@ from melnor_bluetooth.constants import (
     MAX_UNSIGNED_INTEGER,
     UPDATED_AT_CHARACTERISTIC_UUID,
 )
+from melnor_bluetooth.parser.date import get_timestamp
 
 address = "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A"
-
-
-def timeOffset():
-    """Returns the archaic timezone offset in seconds that the device uses as a monotonic clock for operations"""
-
-    base_time = datetime.datetime.now(tz=ZoneInfo("Asia/Shanghai"))
-    local_time = datetime.datetime.now(datetime.timezone.utc).astimezone()
-
-    print("base_time:", base_time)
-    print("local_time:", local_time)
-
-    base_offset = base_time.utcoffset()
-    local_offset = local_time.utcoffset()
-
-    if base_time.dst() is not None and base_time.dst() != 0:
-        base_offset = base_offset - base_time.dst()  # type: ignore
-        print("base_offset:", base_offset)
-
-    if local_time.dst() is not None and local_time.dst() != 0:
-        local_offset = local_offset - local_time.dst()  # type: ignore
-        print("local_offset:", local_offset)
-
-    print(base_offset.total_seconds() - local_offset.total_seconds())  # type: ignore
-
-    return base_offset.total_seconds() - local_offset.total_seconds()  # type: ignore
 
 
 async def main():
@@ -98,16 +72,13 @@ async def main():
 
             print("updated_handle:", updatedAt.handle)
 
-            current_time = int(time() + (-timeOffset() - 946656000))
-
             updated = await client.read_gatt_char(updatedAt.handle)
 
-            print(int(time()))
-            print(current_time)
-            print(int.from_bytes(updated, "big"))
+            print("get_timestamp:", get_timestamp())
+            print("is int", isinstance(get_timestamp(), int))
 
             await client.write_gatt_char(
-                updatedAt.handle, struct.pack(">i", current_time), True
+                updatedAt.handle, struct.pack(">i", get_timestamp()), True
             )
 
     except Exception as e:

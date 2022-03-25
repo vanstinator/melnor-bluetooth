@@ -3,7 +3,7 @@ import zoneinfo
 from zoneinfo import ZoneInfo
 
 
-def _time_offset():
+def _time_offset(tz: datetime.tzinfo = ZoneInfo("UTC")):
     """
     Returns the archaic timezone offset in seconds.
 
@@ -15,7 +15,7 @@ def _time_offset():
     """
 
     base_time = datetime.datetime.now(tz=ZoneInfo("Asia/Shanghai"))
-    local_time = datetime.datetime.now().astimezone()
+    local_time = datetime.datetime.now(tz)
 
     base_offset = base_time.utcoffset()
     local_offset = local_time.utcoffset()
@@ -42,9 +42,9 @@ def _time_offset():
     return int(base_offset.total_seconds() - local_offset.total_seconds())
 
 
-def get_timestamp():
+def get_timestamp(tz: datetime.tzinfo = ZoneInfo("UTC")):
     """
     Returns the current timestamp as a byte array.
     """
 
-    return int(datetime.datetime.now().timestamp() + (-_time_offset() - 946656000))
+    return int(datetime.datetime.now(tz).timestamp() + (-_time_offset(tz) - 946656000))

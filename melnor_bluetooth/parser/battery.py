@@ -12,7 +12,4 @@ def parse_battery_value(bytes: bytes) -> int:
         if rawVal > 100:
             return 100
 
-        if rawVal > 0:
-            return int(rawVal)
-
         return int(rawVal)

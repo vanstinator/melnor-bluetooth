@@ -1,4 +1,4 @@
-from melnor_bt import __version__
+from melnor_bluetooth import __version__
 
 
 def test_version():

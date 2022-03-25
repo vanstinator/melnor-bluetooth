@@ -54,9 +54,24 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
-name = "bluepy"
-version = "1.3.0"
-description = "Python module for interfacing with BLE devices through Bluez"
+name = "bleak"
+version = "0.14.2"
+description = "Bluetooth Low Energy platform Agnostic Klient"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+bleak-winrt = {version = ">=1.1.1", markers = "platform_system == \"Windows\""}
+dbus-next = {version = "*", markers = "platform_system == \"Linux\""}
+pyobjc-core = {version = "*", markers = "platform_system == \"Darwin\""}
+pyobjc-framework-CoreBluetooth = {version = "*", markers = "platform_system == \"Darwin\""}
+pyobjc-framework-libdispatch = {version = "*", markers = "platform_system == \"Darwin\""}
+
+[[package]]
+name = "bleak-winrt"
+version = "1.1.1"
+description = "Python WinRT bindings for Bleak"
 category = "main"
 optional = false
 python-versions = "*"
@@ -79,6 +94,14 @@ description = "Cross-platform colored terminal text."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "dbus-next"
+version = "0.2.3"
+description = "A zero-dependency DBus library for Python with asyncio support"
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
 
 [[package]]
 name = "more-itertools"
@@ -147,6 +170,48 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+name = "pyobjc-core"
+version = "8.4.1"
+description = "Python<->ObjC Interoperability Module"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
+name = "pyobjc-framework-cocoa"
+version = "8.4.1"
+description = "Wrappers for the Cocoa frameworks on macOS"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pyobjc-core = ">=8.4.1"
+
+[[package]]
+name = "pyobjc-framework-corebluetooth"
+version = "8.4.1"
+description = "Wrappers for the framework CoreBluetooth on macOS"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pyobjc-core = ">=8.4.1"
+pyobjc-framework-Cocoa = ">=8.4.1"
+
+[[package]]
+name = "pyobjc-framework-libdispatch"
+version = "8.4.1"
+description = "Wrappers for libdispatch on macOS"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pyobjc-core = ">=8.4.1"
+
+[[package]]
 name = "pyparsing"
 version = "3.0.7"
 description = "Python parsing module"
@@ -180,6 +245,18 @@ checkqa-mypy = ["mypy (==v0.761)"]
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
 
 [[package]]
+name = "pytz-deprecation-shim"
+version = "0.1.0.post0"
+description = "Shims to make deprecation of pytz easier"
+category = "main"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,>=2.7"
+
+[package.dependencies]
+"backports.zoneinfo" = {version = "*", markers = "python_version >= \"3.6\" and python_version < \"3.9\""}
+tzdata = {version = "*", markers = "python_version >= \"3.6\""}
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -196,6 +273,31 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "tzdata"
+version = "2022.1"
+description = "Provider of IANA time zone data"
+category = "main"
+optional = false
+python-versions = ">=2"
+
+[[package]]
+name = "tzlocal"
+version = "4.1"
+description = "tzinfo object for the local timezone"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+"backports.zoneinfo" = {version = "*", markers = "python_version < \"3.9\""}
+pytz-deprecation-shim = "*"
+tzdata = {version = "*", markers = "platform_system == \"Windows\""}
+
+[package.extras]
+devenv = ["black", "pyroma", "pytest-cov", "zest.releaser"]
+test = ["pytest-mock (>=3.3)", "pytest (>=4.3)"]
+
+[[package]]
 name = "wcwidth"
 version = "0.2.5"
 description = "Measures the displayed width of unicode strings in a terminal"
@@ -206,7 +308,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "0cd6a16c255f32e8fea9abf983f0f9055a1abc88ebf58f1c25405b8dc9df05a8"
+content-hash = "cbb3816b90a48a0ab1ac5b1b635e921611af9ddedb2774fa73e550c8df307a7a"
 
 [metadata.files]
 atomicwrites = [
@@ -260,8 +362,20 @@ black = [
     {file = "black-22.1.0-py3-none-any.whl", hash = "sha256:3524739d76b6b3ed1132422bf9d82123cd1705086723bc3e235ca39fd21c667d"},
     {file = "black-22.1.0.tar.gz", hash = "sha256:a7c0192d35635f6fc1174be575cb7915e92e5dd629ee79fdaf0dcfa41a80afb5"},
 ]
-bluepy = [
-    {file = "bluepy-1.3.0.tar.gz", hash = "sha256:2a71edafe103565fb990256ff3624c1653036a837dfc90e1e32b839f83971cec"},
+bleak = [
+    {file = "bleak-0.14.2-py2.py3-none-any.whl", hash = "sha256:48cee8151ec505e02d13330db369b4b78e39dd66e0629e7a1c3d9277e57ac791"},
+    {file = "bleak-0.14.2.tar.gz", hash = "sha256:d04cedcfee67b46c5d1b09072478e102dc32617e1bb55655c457254d0a4678ba"},
+]
+bleak-winrt = [
+    {file = "bleak-winrt-1.1.1.tar.gz", hash = "sha256:3e7765f98d71b5229d95bd3b197931994dead40f3144e7186de7b8f664e26df0"},
+    {file = "bleak_winrt-1.1.1-cp310-cp310-win32.whl", hash = "sha256:f1ab6641cfdadce69126b459c5d30f1a934384bc0c37632393163eea3c94d7a8"},
+    {file = "bleak_winrt-1.1.1-cp310-cp310-win_amd64.whl", hash = "sha256:79a87c7fcc99838bf7f71765e855a74a80e085c4aedde14d0931d56a9f87be77"},
+    {file = "bleak_winrt-1.1.1-cp37-cp37m-win32.whl", hash = "sha256:1cf652fe38822216c093d4322b9899f54bff3169c4fc48ee8dd10bc1938ec59c"},
+    {file = "bleak_winrt-1.1.1-cp37-cp37m-win_amd64.whl", hash = "sha256:09b64b9b768dfa3abab16e67f7e0d476a0e9d86da2975a2487e033ce2be96663"},
+    {file = "bleak_winrt-1.1.1-cp38-cp38-win32.whl", hash = "sha256:1c4a9ee0c3195d07a3fd8f994953075443563c2c5c8e608cd09f3d0eaac540ed"},
+    {file = "bleak_winrt-1.1.1-cp38-cp38-win_amd64.whl", hash = "sha256:e75b8d5aad3169bd528be9ccbacb775fb0d07f1714ca93b1efa6687c47a1b755"},
+    {file = "bleak_winrt-1.1.1-cp39-cp39-win32.whl", hash = "sha256:e0da28651f8e83aaaea4113d084880f1fafae75c29c2a70429ae1f0b8681dc52"},
+    {file = "bleak_winrt-1.1.1-cp39-cp39-win_amd64.whl", hash = "sha256:7481aed7d17e8c2aa2bf9e3786206e382f710f516e00887d825df1b7a4c613d5"},
 ]
 click = [
     {file = "click-8.0.4-py3-none-any.whl", hash = "sha256:6a7a62563bbfabfda3a38f3023a1db4a35978c0abd76f6c9605ecd6554d6d9b1"},
@@ -270,6 +384,10 @@ click = [
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
+]
+dbus-next = [
+    {file = "dbus_next-0.2.3-py3-none-any.whl", hash = "sha256:58948f9aff9db08316734c0be2a120f6dc502124d9642f55e90ac82ffb16a18b"},
+    {file = "dbus_next-0.2.3.tar.gz", hash = "sha256:f4eae26909332ada528c0a3549dda8d4f088f9b365153952a408e28023a626a5"},
 ]
 more-itertools = [
     {file = "more-itertools-8.12.0.tar.gz", hash = "sha256:7dc6ad46f05f545f900dd59e8dfb4e84a4827b97b3cfecb175ea0c7d247f6064"},
@@ -299,6 +417,39 @@ py = [
     {file = "py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378"},
     {file = "py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719"},
 ]
+pyobjc-core = [
+    {file = "pyobjc-core-8.4.1.tar.gz", hash = "sha256:df98669e957adb33566d9ef46773a5ac876a81afe8849c282d6a80448e35dd74"},
+    {file = "pyobjc_core-8.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:9a89cac910fbd64728fe7ec0c7a3a7cf20959bc1d7e2f41db4d7800556e47745"},
+    {file = "pyobjc_core-8.4.1-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:2cf1d4348cb99fcba04fa38199a46e35263b2fe7bb66e6dfbd4f19bc2602998d"},
+    {file = "pyobjc_core-8.4.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:a130324b25c0f5f4cfe30b6a28b8e70865d6e1eee158caababb603906ef431d2"},
+    {file = "pyobjc_core-8.4.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:c31195d1a8f00da99abf79643f902d09c709dbbe9c9b6feb6b585303c57d720c"},
+    {file = "pyobjc_core-8.4.1-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:e7fd2aefb53a96a8f688c8bb36c6ebd5446250a7251bfa6b688a045e05afc60b"},
+    {file = "pyobjc_core-8.4.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:b3191173ce268e23c84d84f036fc94c3a8749a6726fc7fe73baf27dbac14f7d0"},
+]
+pyobjc-framework-cocoa = [
+    {file = "pyobjc-framework-Cocoa-8.4.1.tar.gz", hash = "sha256:dc596bac0f5d424f67944e95b2d0d7c94a07c4166359d7b4a4d4ae4f8e112822"},
+    {file = "pyobjc_framework_Cocoa-8.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:cfbe038a0108ae1b45f8f7067af70af5811b8352d2dc3d86a7bcb4484ff5d56e"},
+    {file = "pyobjc_framework_Cocoa-8.4.1-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:118225562064d991bafb41d0913899d6b3d723984d1888cb7181e4dba63b22c2"},
+    {file = "pyobjc_framework_Cocoa-8.4.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:d117a1eb24fd317e9f63792ac6a8703ed899de5d42e8a861c7bf885625668c31"},
+    {file = "pyobjc_framework_Cocoa-8.4.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:3af8577acbd6b980d3b9270ec99bc0164f66ef8397351a72fcdee527f23c1a34"},
+    {file = "pyobjc_framework_Cocoa-8.4.1-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:91fdc964acb4dee4d37ae81fb603d48397739dbbfcc1eadbe0cdafaa8144b6e6"},
+    {file = "pyobjc_framework_Cocoa-8.4.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:197dd28668e786b55d7d4139afd85c285f780564ebbccc166e84a24be31de34f"},
+]
+pyobjc-framework-corebluetooth = [
+    {file = "pyobjc-framework-CoreBluetooth-8.4.1.tar.gz", hash = "sha256:3abe3883288da3989be1d877078ccd4ece2776e40f9fb52686855266ac739c05"},
+    {file = "pyobjc_framework_CoreBluetooth-8.4.1-cp36-abi3-macosx_10_9_universal2.whl", hash = "sha256:07d60a0a36da1cbde20ac14771318e9eb3236609419b0d10b280f2e49b866092"},
+    {file = "pyobjc_framework_CoreBluetooth-8.4.1-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:f7be2e86a72764a305403b5ae2b96a4172db1795d4bd568e66d9ebdda3b3fcae"},
+    {file = "pyobjc_framework_CoreBluetooth-8.4.1-cp36-abi3-macosx_11_0_universal2.whl", hash = "sha256:eeae1555eb85bfee06ee2cfb312dbbaf42f51fc24958b3747657212d95b825f5"},
+]
+pyobjc-framework-libdispatch = [
+    {file = "pyobjc-framework-libdispatch-8.4.1.tar.gz", hash = "sha256:5bba16fe67febbb9a84108c0bbff97dd4730dfbcef01dc26f73d58377280e143"},
+    {file = "pyobjc_framework_libdispatch-8.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:5eb83a7e3032db64390de96abf8568244a915afa468facc56021c5dbda32f7a0"},
+    {file = "pyobjc_framework_libdispatch-8.4.1-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:78d828352481d61a482f829da9feb9b931ae1e921929a4de5265806d1fd5284f"},
+    {file = "pyobjc_framework_libdispatch-8.4.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:3f514732473b9813ab760cb5fccce01782a5c37e0add29dc5f79563e3c9dbc06"},
+    {file = "pyobjc_framework_libdispatch-8.4.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:9604007a6c73519fec1da87e65a5f0653fb0a7edefbf240b13d9d5fe5f305316"},
+    {file = "pyobjc_framework_libdispatch-8.4.1-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:1b209d2803073973800daaf8ae4bbbcd8389dcc36973c01b90acd2c73d30344f"},
+    {file = "pyobjc_framework_libdispatch-8.4.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:f88b5615738bf88d21acfbee9423ee350d47402b05d9dd8ce3b8057ab7c0d6e9"},
+]
 pyparsing = [
     {file = "pyparsing-3.0.7-py3-none-any.whl", hash = "sha256:a6c06a88f252e6c322f65faf8f418b16213b51bdfaece0524c1c1bc30c63c484"},
     {file = "pyparsing-3.0.7.tar.gz", hash = "sha256:18ee9022775d270c55187733956460083db60b37d0d0fb357445f3094eed3eea"},
@@ -307,6 +458,10 @@ pytest = [
     {file = "pytest-5.4.3-py3-none-any.whl", hash = "sha256:5c0db86b698e8f170ba4582a492248919255fcd4c79b1ee64ace34301fb589a1"},
     {file = "pytest-5.4.3.tar.gz", hash = "sha256:7979331bfcba207414f5e1263b5a0f8f521d0f457318836a7355531ed1a4c7d8"},
 ]
+pytz-deprecation-shim = [
+    {file = "pytz_deprecation_shim-0.1.0.post0-py2.py3-none-any.whl", hash = "sha256:8314c9692a636c8eb3bda879b9f119e350e93223ae83e70e80c31675a0fdc1a6"},
+    {file = "pytz_deprecation_shim-0.1.0.post0.tar.gz", hash = "sha256:af097bae1b616dde5c5744441e2ddc69e74dfdcb0c263129610d85b87445a59d"},
+]
 tomli = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
@@ -314,6 +469,14 @@ tomli = [
 typing-extensions = [
     {file = "typing_extensions-4.1.1-py3-none-any.whl", hash = "sha256:21c85e0fe4b9a155d0799430b0ad741cdce7e359660ccbd8b530613e8df88ce2"},
     {file = "typing_extensions-4.1.1.tar.gz", hash = "sha256:1a9462dcc3347a79b1f1c0271fbe79e844580bb598bafa1ed208b94da3cdcd42"},
+]
+tzdata = [
+    {file = "tzdata-2022.1-py2.py3-none-any.whl", hash = "sha256:238e70234214138ed7b4e8a0fab0e5e13872edab3be586ab8198c407620e2ab9"},
+    {file = "tzdata-2022.1.tar.gz", hash = "sha256:8b536a8ec63dc0751342b3984193a3118f8fca2afe25752bb9b7fffd398552d3"},
+]
+tzlocal = [
+    {file = "tzlocal-4.1-py3-none-any.whl", hash = "sha256:28ba8d9fcb6c9a782d6e0078b4f6627af1ea26aeaa32b4eab5324abc7df4149f"},
+    {file = "tzlocal-4.1.tar.gz", hash = "sha256:0f28015ac68a5c067210400a9197fc5d36ba9bc3f8eaf1da3cbd59acdfed9e09"},
 ]
 wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},

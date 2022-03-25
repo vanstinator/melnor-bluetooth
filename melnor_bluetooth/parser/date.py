@@ -1,4 +1,5 @@
 import datetime
+import zoneinfo
 from zoneinfo import ZoneInfo
 
 
@@ -14,7 +15,7 @@ def _time_offset():
     """
 
     base_time = datetime.datetime.now(tz=ZoneInfo("Asia/Shanghai"))
-    local_time = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    local_time = datetime.datetime.now().astimezone()
 
     base_offset = base_time.utcoffset()
     local_offset = local_time.utcoffset()

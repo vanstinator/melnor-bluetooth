@@ -27,6 +27,7 @@ profile = "black"
 [tool.poetry.dependencies]
 python = "^3.9"
 bleak = "^0.14.2"
+tzdata = "^2022.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.0"

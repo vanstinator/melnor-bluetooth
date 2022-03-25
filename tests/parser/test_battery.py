@@ -1,4 +1,4 @@
-from melnor_bt.parser.battery import get_batt_val
+from melnor_bluetooth.parser.battery import get_batt_val
 
 
 class TestBatteryParser:

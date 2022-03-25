@@ -1,17 +1,17 @@
 [tool.poetry]
-name = "melnor-bt"
+name = "melnor-bluetooh"
 version = "0.1.0"
 description = "A small python library for discovery and interacting with Melnor, Aquastar, etc bluetooth water timers."
 authors = ["Justin Vanderhooft <justinvdhooft@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-"backports.zoneinfo" = "^0.2.1"
+python = "^3.9"
 bleak = "^0.14.2"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^7.0.0"
 black = "^22.1.0"
+pytest-cov = "^3.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

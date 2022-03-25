@@ -1,7 +1,7 @@
 import datetime
 from time import sleep, time
 
-from melnor_bt.parser.battery import get_batt_val
+from melnor_bluetooth.parser.battery import get_batt_val
 
 try:
     import zoneinfo  # type: ignore
@@ -10,7 +10,7 @@ except ImportError:
 
 from bluepy import btle
 
-from melnor_bt.constants import (
+from melnor_bluetooth.constants import (
     BATTERY_CHARACTERISTIC_UUID,
     DEVICE_USER_NAME_CHARACTERISTIC_UUID,
     GATEWAY_ON_OFF_CHARACTERISTIC_UUID,

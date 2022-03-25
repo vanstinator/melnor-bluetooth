@@ -1,7 +1,7 @@
 import struct
 
-from melnor_bt.parser.battery import get_batt_val
-from melnor_bt.valve import Zone
+from melnor_bluetooth.parser.battery import get_batt_val
+from melnor_bluetooth.valve import Zone
 
 zone_byte_payload = struct.pack(
     ">20B",

@@ -1,17 +1,13 @@
 import asyncio
 import datetime
 import struct
-from calendar import c
+import sys
 from time import time
+from zoneinfo import ZoneInfo
 
 from bleak import BleakClient, BleakScanner
 
-try:
-    import zoneinfo  # type: ignore
-except ImportError:
-    from backports import zoneinfo
-
-from melnor_bt.constants import (
+from melnor_bluetooth.constants import (
     BATTERY_CHARACTERISTIC_UUID,
     GATEWAY_ON_OFF_CHARACTERISTIC_UUID,
     MAX_UNSIGNED_INTEGER,
@@ -24,7 +20,7 @@ address = "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A"
 def timeOffset():
     """Returns the archaic timezone offset in seconds that the device uses as a monotonic clock for operations"""
 
-    base_time = datetime.datetime.now(tz=zoneinfo.ZoneInfo("Asia/Shanghai"))
+    base_time = datetime.datetime.now(tz=ZoneInfo("Asia/Shanghai"))
     local_time = datetime.datetime.now(datetime.timezone.utc).astimezone()
 
     print("base_time:", base_time)

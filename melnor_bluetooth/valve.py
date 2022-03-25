@@ -1,6 +1,6 @@
 import struct
 
-from bluepy import btle
+from bleak import BleakClient
 
 from .constants import BATTERY_CHARACTERISTIC_UUID
 from .parser.battery import get_batt_val
@@ -8,27 +8,29 @@ from .parser.battery import get_batt_val
 
 class Valve:
 
-    _connection: btle.Peripheral
+    _connection: BleakClient
     _mac: str
 
     def __init__(self, mac: str) -> None:
         self._mac = mac
 
     async def connect(self) -> None:
-        try:
-            self._connection = btle.Peripheral(self._mac)
-        except btle.BTLEDisconnectError:
-            print("Could not connect to device")
-            return
+        # try:
+        self._connection = BleakClient(self._mac)
+        await self._connection.connect()
+
+    # except btle.BTLEDisconnectError:
+    #     print("Could not connect to device")
+    #     return
 
     async def disconnect(self) -> None:
-        self._connection.disconnect()
+        await self._connection.disconnect()
 
-    async def get_battery_life(self) -> int:
-        battery_characteristic = self._connection.getCharacteristics(
-            uuid=BATTERY_CHARACTERISTIC_UUID
-        )[0]
-        return get_batt_val(battery_characteristic.read())
+    # async def get_battery_life(self) -> int:
+    #     battery_characteristic = self._connection.getCharacteristics(
+    #         uuid=BATTERY_CHARACTERISTIC_UUID
+    #     )[0]
+    # return get_batt_val(battery_characteristic.read())
 
 
 class Zone:

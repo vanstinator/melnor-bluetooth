@@ -47,7 +47,7 @@ jobs:
         run: poetry install
         
       - name: Test
-        run: poetry run pytest --cov --cov-report=xml:${{ matrix.python-version }}_${{ matrix.os }}.xml
+        run: poetry run pytest --cov=melnor_bluetooth --cov-report=xml:${{ matrix.python-version }}_${{ matrix.os }}.xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v2

@@ -8,8 +8,21 @@ authors = ["Justin Vanderhooft <justinvdhooft@gmail.com>"]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # Ignored files/directories
+)/
+'''
+
 [tool.coverage.run]
 relative_files = true
+
+[tool.isort]
+profile = "black"
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -19,3 +32,5 @@ bleak = "^0.14.2"
 pytest = "^7.0.0"
 black = "^22.1.0"
 pytest-cov = "^3.0.0"
+isort = "^5.10.1"
+pre-commit = "^2.17.0"

@@ -1,7 +1,7 @@
 import struct
 
-from melnor_bluetooth.parser.battery import get_batt_val
-from melnor_bluetooth.valve import Zone
+from melnor_bluetooth.device import Valve
+from melnor_bluetooth.parser.battery import parse_battery_value
 
 zone_byte_payload = struct.pack(
     ">20B",
@@ -34,7 +34,7 @@ zone_byte_payload = struct.pack(
 
 class TestValveZone:
     def test_zone_0_update_state(self):
-        zone = Zone(0)
+        zone = Valve(0)
 
         print(zone_byte_payload)
 
@@ -44,7 +44,7 @@ class TestValveZone:
         assert zone.manual_watering_seconds == 360
 
     def test_zone_1_update_state(self):
-        zone = Zone(1)
+        zone = Valve(1)
 
         print(zone_byte_payload)
 
@@ -54,7 +54,7 @@ class TestValveZone:
         assert zone.manual_watering_seconds == 23
 
     def test_zone_2_update_state(self):
-        zone = Zone(2)
+        zone = Valve(2)
 
         print(zone_byte_payload)
 
@@ -64,7 +64,7 @@ class TestValveZone:
         assert zone.manual_watering_seconds == 42
 
     def test_zone_3_update_state(self):
-        zone = Zone(3)
+        zone = Valve(3)
 
         print(zone_byte_payload)
 
@@ -74,7 +74,7 @@ class TestValveZone:
         assert zone.manual_watering_seconds == 13
 
     def test_zone_property(self):
-        zone = Zone(0)
+        zone = Valve(0)
 
         assert zone.is_watering == False
         assert zone.manual_watering_seconds == 20 * 60

@@ -3,10 +3,10 @@ import struct
 from bleak import BleakClient
 
 from .constants import BATTERY_CHARACTERISTIC_UUID
-from .parser.battery import get_batt_val
+from .parser.battery import parse_battery_value
 
 
-class Valve:
+class Device:
 
     _connection: BleakClient
     _mac: str
@@ -33,7 +33,7 @@ class Valve:
     # return get_batt_val(battery_characteristic.read())
 
 
-class Zone:
+class Valve:
 
     _id: int
     _is_watering: bool

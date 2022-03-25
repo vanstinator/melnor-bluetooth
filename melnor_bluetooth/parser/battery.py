@@ -1,5 +1,5 @@
 # See _getBattValue from DataUtils.java
-def get_batt_val(bytes: bytes) -> int:
+def parse_battery_value(bytes: bytes) -> int:
 
     """Converts the little endian 2 byte array to the battery life %"""
     if (bytes[0] & 255 == 238) and (bytes[1] & 255 == 238):

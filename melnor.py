@@ -1,7 +1,7 @@
 import datetime
 from time import sleep, time
 
-from melnor_bluetooth.parser.battery import get_batt_val
+from melnor_bluetooth.parser.battery import parse_battery_value
 
 try:
     import zoneinfo  # type: ignore
@@ -57,7 +57,7 @@ print(int.from_bytes(updated.read(), "big"))
 
 
 val = dev.getCharacteristics(uuid=BATTERY_CHARACTERISTIC_UUID)[0].read()
-print(f"Battery life: {get_batt_val(val)}%")
+print(f"Battery life: {parse_battery_value(val)}%")
 print(f"Battery life: {val}%")
 
 

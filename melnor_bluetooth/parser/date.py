@@ -1,9 +1,8 @@
 import datetime
-import zoneinfo
 from zoneinfo import ZoneInfo
 
 
-def _time_offset(tz: datetime.tzinfo = ZoneInfo("UTC")):
+def _time_offset(tz: datetime.tzinfo = datetime.timezone.utc):
     """
     Returns the archaic timezone offset in seconds.
 
@@ -42,7 +41,7 @@ def _time_offset(tz: datetime.tzinfo = ZoneInfo("UTC")):
     return int(base_offset.total_seconds() - local_offset.total_seconds())
 
 
-def get_timestamp(tz: datetime.tzinfo = ZoneInfo("UTC")):
+def get_timestamp(tz: datetime.tzinfo = datetime.timezone.utc):
     """
     Returns the current timestamp as a byte array.
     """

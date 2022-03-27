@@ -1,7 +1,6 @@
 import asyncio
-import datetime
 import struct
-from operator import concat
+import sys
 from typing import Any
 
 from bleak import BleakClient, BleakError
@@ -58,8 +57,6 @@ class Valve:
     def is_watering(self, value: bool) -> None:
         """Sets the watering state of the zone"""
         self._is_watering = 1 if value else 0
-        loop = asyncio.get_event_loop()
-        loop.create_task(self._device.push_state())
 
     @property
     def manual_watering_minutes(self) -> int:
@@ -87,11 +84,15 @@ class Valve:
 class Device:
 
     _connection: BleakClient
+    _is_connected: bool = False
     _mac: str
     _valves: list[Valve] = []
 
     def __init__(self, mac: str) -> None:
         self._mac = mac
+
+        # TODO we need to figure out where to find the valve count
+        self._valves = [Valve(0, self), Valve(1, self), Valve(2, self), Valve(3, self)]
 
     def disconnected_callback(self, client):
         print("Disconnected from:", self._mac)
@@ -106,41 +107,36 @@ class Device:
             self._connection = BleakClient(
                 self._mac, disconnected_callback=self.disconnected_callback
             )
-            await self._connection.connect()
 
+            await self._connection.connect()
+            self._is_connected = True
             print("Success:", self._mac)
 
         except BleakError:
             print("Failed to connect to:", self._mac)
-            await asyncio.sleep(5)
+            self._is_connected = False
+
+            if "unittest" not in sys.modules.keys():
+                await asyncio.sleep(5)
+
             print("Retrying...")
             await self.connect()
 
     async def disconnect(self) -> None:
         await self._connection.disconnect()
 
-    async def update(self) -> None:
+    async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
         state = await self._connection.read_gatt_char(
             GATEWAY_ON_OFF_CHARACTERISTIC_UUID
         )
 
-        # TODO we need to figure out where to find the valve count
-        self._valves = [Valve(0, self), Valve(1, self), Valve(2, self), Valve(3, self)]
-
         for valve in self._valves:
             valve.update_state(state)
 
     async def push_state(self) -> None:
         """Pushes the state of the device to the device"""
-
-        print(
-            self._valves[0].byte_payload
-            + self._valves[1].byte_payload
-            + self._valves[2].byte_payload
-            + self._valves[3].byte_payload
-        )
 
         onOff = self._connection.services.get_characteristic(
             GATEWAY_ON_OFF_CHARACTERISTIC_UUID
@@ -161,13 +157,14 @@ class Device:
             UPDATED_AT_CHARACTERISTIC_UUID
         )
 
-        sigh = await self._connection.read_gatt_char(UPDATED_AT_CHARACTERISTIC_UUID)
-
-        print("updated:", int.from_bytes(sigh, byteorder="big"))
-
         await self._connection.write_gatt_char(
             updatedAt.handle, struct.pack(">i", get_timestamp(get_localzone())), True
         )
+
+    @property
+    def is_connected(self) -> bool:
+        """Returns whether the device is currently connected"""
+        return self._is_connected
 
     @property
     def zone1(self) -> Valve:

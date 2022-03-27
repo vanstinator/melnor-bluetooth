@@ -21,7 +21,7 @@ async def main():
 
     await device.connect()
 
-    await device.update()
+    await device.fetch_state()
 
     while True:
 
@@ -34,12 +34,13 @@ async def main():
             device.zone1.is_watering = False
         else:
             print("Invalid input")
-            continue
+
+        await device.push_state()
+        continue
 
         # await device.push_state()
 
-    # device.zone1.manual_watering_minutes = 200
-    device.zone1.is_watering = watering
+        # device.zone1.manual_watering_minutes = 200
 
     # device.zone2.manual_watering_minutes = 200
     # device.zone2.is_watering = watering

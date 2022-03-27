@@ -2,8 +2,9 @@ import asyncio
 import struct
 
 from bleak import BleakClient, BleakError
-from mockito import verify, when
+from mockito import ANY, verify, when
 
+import melnor_bluetooth.device as device_module
 from melnor_bluetooth.device import Device, Valve
 
 zone_byte_payload = struct.pack(
@@ -116,6 +117,9 @@ class TestDevice:
         success.set_result(True)
 
         when(BleakClient).connect().thenReturn(failure).thenReturn(success)
+        when(device_module).BleakClient(
+            "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A", disconnected_callback=ANY
+        ).thenReturn(BleakClient)
 
         await device.connect()
 

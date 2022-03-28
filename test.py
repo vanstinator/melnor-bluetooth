@@ -72,13 +72,20 @@ async def main():
 
             print("updated_handle:", updatedAt.handle)
 
-            updated = await client.read_gatt_char(updatedAt.handle)
-
             print("get_timestamp:", get_timestamp())
             print("is int", isinstance(get_timestamp(), int))
 
+            tz = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+
+            print(tz)
+
+            if tz is None:
+                return
+
             await client.write_gatt_char(
-                updatedAt.handle, struct.pack(">i", get_timestamp()), True
+                updatedAt.handle,
+                struct.pack(">i", get_timestamp(tz)),
+                True,
             )
 
     except Exception as e:

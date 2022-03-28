@@ -28,8 +28,6 @@ def _time_offset(tz: datetime.tzinfo = datetime.timezone.utc):
         # TODO log or throw an exception here. caller should handle this
         return 0
 
-    print(local_time)
-
     if base_time.dst() is not None:
         base_offset = base_offset - base_time.dst()  # type: ignore
 

@@ -127,9 +127,6 @@ class Device:
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
-        print("########################################")
-        print(self._connection)
-
         state = await self._connection.read_gatt_char(
             GATEWAY_ON_OFF_CHARACTERISTIC_UUID
         )

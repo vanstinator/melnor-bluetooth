@@ -10,7 +10,8 @@ def _time_offset(tz: datetime.tzinfo = datetime.timezone.utc):
     appears to deduct ~30 years from the current time to fit into a 4 byte size.
 
 
-    All watering operations are keyed off this value and the mobile app _and valves_ will show bad info we don't replicate the algorithm
+    All watering operations are keyed off this value and the mobile app _and valves_
+    will show bad info we don't replicate the algorithm
     """
 
     base_time = datetime.datetime.now(tz=zoneinfo.ZoneInfo("Asia/Shanghai"))

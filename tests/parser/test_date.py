@@ -20,7 +20,8 @@ class TestDateTester:
     def test_time_offset_dst(self):
         assert _time_offset(tz) == 46800
 
-    # DST is largely irrelevant to this computation as long as the offset is correct which we validate above
+    # DST is largely irrelevant to this computation as long
+    # as the offset is correct which we validate above
     @freeze_time(no_dst)
     def test_get_timestamp_no(self):
         assert get_timestamp() == 700290000

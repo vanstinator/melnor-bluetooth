@@ -3,7 +3,7 @@ import struct
 from typing import Type
 
 import pytest
-from bleak import BleakClient, BleakError
+from bleak import BleakClient
 from mockito import ANY, mock, verify, when
 
 import melnor_bluetooth.device as device_module

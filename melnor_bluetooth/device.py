@@ -9,11 +9,9 @@ from tzlocal import get_localzone
 from melnor_bluetooth.parser.date import get_timestamp
 
 from .constants import (
-    BATTERY_CHARACTERISTIC_UUID,
     GATEWAY_ON_OFF_CHARACTERISTIC_UUID,
     UPDATED_AT_CHARACTERISTIC_UUID,
 )
-from .parser.battery import parse_battery_value
 
 
 class Valve:
@@ -39,7 +37,8 @@ class Valve:
             4 - 0x00, # see index 2
         ]
 
-        Get the watering total by multiplying the unpacked int in position 2 and adding the int in position 3
+        Get the watering total by multiplying the unpacked int in position 2 and
+        adding the int in position 3
         """
 
         self._is_watering = bytes[self._id * 5]

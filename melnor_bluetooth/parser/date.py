@@ -13,10 +13,8 @@ def _time_offset(tz: datetime.tzinfo = datetime.timezone.utc):
     All watering operations are keyed off this value and the mobile app _and valves_ will show bad info we don't replicate the algorithm
     """
 
-    print(zoneinfo.available_timezones)
-
     base_time = datetime.datetime.now(tz=zoneinfo.ZoneInfo("Asia/Shanghai"))
-    local_time = datetime.datetime.now(tz)
+    local_time = datetime.datetime.now(tz=tz)
 
     base_offset = base_time.utcoffset()
     local_offset = local_time.utcoffset()

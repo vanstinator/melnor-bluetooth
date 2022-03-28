@@ -1,6 +1,8 @@
 import asyncio
 import struct
+from typing import Type
 
+import pytest
 from bleak import BleakClient, BleakError
 from mockito import ANY, mock, verify, when
 
@@ -35,6 +37,23 @@ zone_byte_payload = struct.pack(
     0,
     20,
 )
+
+
+@pytest.fixture
+def client_mock() -> Type:
+    connect = asyncio.Future()
+    connect.set_result(True)
+
+    client_mock = mock(spec=BleakClient)
+
+    when(device_module).BleakClient(
+        "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A", disconnected_callback=ANY
+    ).thenReturn(client_mock)
+
+    when(client_mock).connect().thenReturn(connect)
+
+    client_mock.__class__
+    return client_mock
 
 
 class TestValveZone:
@@ -93,7 +112,7 @@ class TestDevice:
     #     verify(BleakClient, times=2).connect()
 
     # @patch("melnor_bluetooth.device.BleakClient")
-    async def test_fetch(self):
+    async def test_fetch(self, client_mock):
         device = Device("FDBC1347-8D0B-DB0E-8D79-7341E825AC2A")
 
         read = asyncio.Future()
@@ -126,17 +145,6 @@ class TestDevice:
                 0,
             )
         )
-
-        success = asyncio.Future()
-        success.set_result(True)
-
-        client_mock = mock(spec=BleakClient)
-
-        when(device_module).BleakClient(
-            "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A", disconnected_callback=ANY
-        ).thenReturn(client_mock)
-
-        when(client_mock).connect().thenReturn(success)
 
         when(client_mock).read_gatt_char(GATEWAY_ON_OFF_CHARACTERISTIC_UUID).thenReturn(
             read

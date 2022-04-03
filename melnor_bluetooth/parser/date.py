@@ -1,8 +1,10 @@
 import datetime
 import zoneinfo
 
+from tzlocal import get_localzone
 
-def _time_offset(tz: datetime.tzinfo = datetime.timezone.utc):
+
+def _time_offset(tz: datetime.tzinfo = get_localzone()):
     """
     Returns the archaic timezone offset in seconds.
 
@@ -42,9 +44,13 @@ def _time_offset(tz: datetime.tzinfo = datetime.timezone.utc):
     return int(base_offset.total_seconds() - local_offset.total_seconds())
 
 
-def get_timestamp(tz: datetime.tzinfo = datetime.timezone.utc):
+def time_shift(tz: datetime.tzinfo = get_localzone()) -> int:
+    return -_time_offset(tz) - 946656000
+
+
+def get_timestamp(tz: datetime.tzinfo = get_localzone()) -> int:
     """
     Returns the current timestamp as a byte array.
     """
 
-    return int(datetime.datetime.now(tz).timestamp() + (-_time_offset(tz) - 946656000))
+    return int(datetime.datetime.now(tz).timestamp() + time_shift(tz))

@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 import aioconsole
 
@@ -13,17 +14,22 @@ async def main():
 
     await device.connect()
 
-    await device.fetch_state()
-
     while True:
 
+        print(device.__str__())
+
+        await device.fetch_state()
+
         # Take user input
-        line = await aioconsole.ainput("on or off: ")
+        line = await aioconsole.ainput("on or off or d: ")
 
         if line == "on":
             device.zone1.is_watering = True
         elif line == "off":
             device.zone1.is_watering = False
+        elif line == "d":
+            await device.disconnect()
+            sys.exit(0)
         else:
             print("Invalid input")
 

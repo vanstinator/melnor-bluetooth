@@ -1,0 +1,12 @@
+# name: TestDevice.test_str
+  '
+  Device(
+      valves=(
+        Valve(id=0|is_watering=False|manual_minutes=20|seconds_left=0)
+        Valve(id=1|is_watering=False|manual_minutes=20|seconds_left=0)
+        Valve(id=2|is_watering=False|manual_minutes=20|seconds_left=0)
+        Valve(id=3|is_watering=False|manual_minutes=20|seconds_left=0)
+      )
+  )
+  '
+---

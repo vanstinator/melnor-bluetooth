@@ -23,5 +23,5 @@ class TestDateTester:
     # DST is largely irrelevant to this computation as long
     # as the offset is correct which we validate above
     @freeze_time(no_dst)
-    def test_get_timestamp_no(self):
-        assert get_timestamp() == 700290000
+    def test_get_timestamp(self):
+        assert get_timestamp(ZoneInfo("UTC")) == 700290000

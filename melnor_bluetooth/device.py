@@ -4,13 +4,13 @@ import sys
 from typing import Any
 
 from bleak import BleakClient, BleakError
-from tzlocal import get_localzone
 
-from melnor_bluetooth.parser.date import get_timestamp
+from melnor_bluetooth.parser.date import get_timestamp, time_shift
 
 from .constants import (
-    GATEWAY_ON_OFF_CHARACTERISTIC_UUID,
-    UPDATED_AT_CHARACTERISTIC_UUID,
+    UPDATED_AT_UUID,
+    VALVE_MANUAL_SETTINGS_UUID,
+    VALVE_MANUAL_STATES_UUID,
 )
 
 
@@ -18,34 +18,44 @@ class Valve:
 
     _device: Any
     _id: int
-    _is_watering: int
-    _manual_watering_minutes: int
+    _is_watering: bool
+    _manual_minutes: int
 
     def __init__(self, id: int, device) -> None:
         self._device = device
         self._id = id
         self._is_watering = False
-        self._manual_watering_minutes = 20
+        self._manual_minutes = 20
+        self._end_time = 0
 
-    def update_state(self, bytes: bytes) -> None:
-        """Parses a 5 byte response from the device and updates the state of the zone
-        [
-            0 - 0x00, # is_watering
-            1 - 0x00, # number of max unsigned bytes (0-255) in the run time total
-            2 - 0x00, # remainder of the run time total in seconds
-            3 - 0x00, # see index 1
-            4 - 0x00, # see index 2
-        ]
+    def update_state(self, bytes: bytes, uuid: str) -> None:
 
-        Get the watering total by multiplying the unpacked int in position 2 and
-        adding the int in position 3
-        """
+        offset = self._id * 5
 
-        self._is_watering = bytes[self._id * 5]
+        if uuid == VALVE_MANUAL_SETTINGS_UUID:
+            """Parses a 5 byte segment from the device and updates the state of the zone
+            [
+                0   - 0x00, # is_watering - boolean
+                1-2 - 0x00, # manual_watering_time - unsigned short
+                3-4 - 0x00, # duplicate of byte 1
+            ]
+            """
 
-        self._manual_watering_minutes = (bytes[(self._id * 5) + 1] * 256) + bytes[
-            self._id * 5 + 2
-        ]
+            self._is_watering = struct.unpack_from(">?", bytes, offset)[0]
+            self._manual_minutes = struct.unpack_from(">H", bytes, offset + 1)[0]
+
+        elif uuid == VALVE_MANUAL_STATES_UUID:
+            """byte segment for manual watering time left
+            [
+                0   - 0x00, # unclear, 0-2
+                1-4 - 0x00, # timestamp - unsigned int
+            ]
+            """
+            parsed_time = self._end_time = struct.unpack_from(">I", bytes, offset + 1)[
+                0
+            ]
+
+            self._end_time = parsed_time - time_shift() if parsed_time != 0 else 0
 
     @property
     def is_watering(self) -> bool:
@@ -55,29 +65,42 @@ class Valve:
     @is_watering.setter
     def is_watering(self, value: bool) -> None:
         """Sets the watering state of the zone"""
-        self._is_watering = 1 if value else 0
+        self._is_watering = value
 
     @property
-    def manual_watering_minutes(self) -> int:
+    def manual_minutes(self) -> int:
         """Returns the number of seconds the zone has been manually watering for"""
-        return self._manual_watering_minutes
+        return self._manual_minutes
 
-    @manual_watering_minutes.setter
+    @manual_minutes.setter
     def manual_watering_minutes(self, value: int) -> None:
         """Set the number of seconds the zone should manually watering for"""
-        self._manual_watering_minutes = value
+        self._manual_minutes = value
 
     @property
-    def byte_payload(self) -> list[int]:
+    def watering_end_time(self) -> int:
+        """Unix timestamp in seconds when watering will end"""
+        return self._end_time
+
+    @property
+    def manual_setting_bytes(self) -> bytes:
         """Returns the 5 byte payload to be written to the device"""
 
-        return [
+        return struct.pack(
+            ">?HH",
             self._is_watering,
-            self._manual_watering_minutes >> 8,
-            self._manual_watering_minutes & 255,
-            self._manual_watering_minutes >> 8,
-            self._manual_watering_minutes & 255,
-        ]
+            self._manual_minutes,
+            self._manual_minutes,
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"      Valve(id={self._id}|"
+            + f"is_watering={self._is_watering}|"
+            + f"manual_minutes={self._manual_minutes}|"
+            + f"seconds_left={self._end_time}"
+            + ")"
+        )
 
 
 class Device:
@@ -127,37 +150,43 @@ class Device:
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
-        state = await self._connection.read_gatt_char(
-            GATEWAY_ON_OFF_CHARACTERISTIC_UUID
+        uuids = [VALVE_MANUAL_SETTINGS_UUID, VALVE_MANUAL_STATES_UUID]
+
+        bytes_array = await asyncio.gather(
+            *[self._read(uuid) for uuid in uuids],
+            return_exceptions=True,
         )
 
-        for valve in self._valves:
-            valve.update_state(state)
+        for i, bytes in enumerate(bytes_array):
+            for valve in self._valves:
+                bytes = uuids.index(uuids[i])
+                valve.update_state(bytes_array[bytes], uuids[i])
+
+    async def _read(self, uuid: str) -> bytes:
+        """Reads the given characteristic from the device"""
+
+        return await self._connection.read_gatt_char(uuid)
 
     async def push_state(self) -> None:
         """Pushes the state of the device to the device"""
 
-        onOff = self._connection.services.get_characteristic(
-            GATEWAY_ON_OFF_CHARACTERISTIC_UUID
-        )
+        onOff = self._connection.services.get_characteristic(VALVE_MANUAL_SETTINGS_UUID)
 
         await self._connection.write_gatt_char(
             onOff.handle,
-            bytes(
-                self._valves[0].byte_payload
-                + self._valves[1].byte_payload
-                + self._valves[2].byte_payload
-                + self._valves[3].byte_payload
+            (
+                self._valves[0].manual_setting_bytes
+                + self._valves[1].manual_setting_bytes
+                + self._valves[2].manual_setting_bytes
+                + self._valves[3].manual_setting_bytes
             ),
             True,
         )
 
-        updatedAt = self._connection.services.get_characteristic(
-            UPDATED_AT_CHARACTERISTIC_UUID
-        )
+        updatedAt = self._connection.services.get_characteristic(UPDATED_AT_UUID)
 
         await self._connection.write_gatt_char(
-            updatedAt.handle, struct.pack(">i", get_timestamp(get_localzone())), True
+            updatedAt.handle, struct.pack(">I", get_timestamp()), True
         )
 
     @property
@@ -186,3 +215,9 @@ class Device:
     #         uuid=BATTERY_CHARACTERISTIC_UUID
     #     )[0]
     # return get_batt_val(battery_characteristic.read())
+
+    def __str__(self) -> str:
+        str = f"{self.__class__.__name__}(\n    valves=(\n"
+        for valve in self._valves:
+            str += f"{valve}\n"
+        return f"{str}    )\n)"

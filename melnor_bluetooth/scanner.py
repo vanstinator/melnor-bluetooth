@@ -1,5 +1,6 @@
 import asyncio
-from typing import Any, Callable, Coroutine, Dict, Tuple
+import sys
+from typing import Callable, Dict, Tuple
 
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
@@ -7,7 +8,7 @@ from bleak.backends.scanner import AdvertisementData
 
 from .device import Device
 
-DeviceCallbackType = Callable[[Device], Coroutine[Any, Any, None]]
+DeviceCallbackType = Callable[[Device], None]
 
 # We don't use the sensors today but we might as well track it here so we have it
 device_valve_count_sensor_map: Dict[str, Tuple[int, bool]] = {
@@ -46,15 +47,12 @@ def _callback(
             print(f"Unknown model number: {model_number}")
             return
 
-        melnor_device = Device(
-            ble_device.address,
-            model_info[0],
+        callback(
+            Device(
+                ble_device.address,
+                model_info[0],
+            )
         )
-
-        # The Bleak scanner callback runs as a synchronous process
-        # but we want to preserve the async context for the caller
-        loop = asyncio.get_event_loop()
-        loop.create_task(callback(melnor_device))
 
 
 async def scanner(
@@ -77,5 +75,6 @@ async def scanner(
     )
 
     await scanner.start()
-    await asyncio.sleep(scan_timeout_seconds)
+    if "unittest" not in sys.modules.keys():
+        await asyncio.sleep(scan_timeout_seconds)
     await scanner.stop()

@@ -1,11 +1,13 @@
 [tool.poetry]
-name = "melnor-bluetooh"
-version = "0.1.0"
-description = "A small python library for discovery and interacting with Melnor, Aquastar, etc bluetooth water timers."
 authors = ["Justin Vanderhooft <justinvdhooft@gmail.com>"]
+description = "A small python library for discovery and interacting with Melnor, Aquastar, etc bluetooth water timers."
+license = "MIT"
+name = "melnor-bluetooth"
+readme = "README.md"
+version = "0.0.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
@@ -43,6 +45,19 @@ pytest-mockito = "^0.0.4"
 mockito = "^1.3.0"
 flake8 = "^4.0.1"
 syrupy = "^1.7.4"
+
+[tool.poetry-dynamic-versioning]
+bump = false
+enable = true
+format-jinja = """
+    {%- if distance == 0 -%}
+        {{ serialize_pep440(base, stage, revision) }}
+    {%- elif revision is not none -%}
+        {{ serialize_pep440(base, stage, revision + 1, dev=distance) }}
+    {%- else -%}
+        {{ serialize_pep440(bump_version(base), stage, revision, dev=distance) }}
+    {%- endif -%}
+"""
 
 [tool.pytest.ini_options]
 asyncio_mode = 'auto'

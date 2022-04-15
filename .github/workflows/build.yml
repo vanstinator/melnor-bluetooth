@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+  push:
+    branches:
+      - main
+
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: "Build"
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: 3.9
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: 1.1.13
+
+      - name: Install poetry-dynamic-versioning
+        run: pip install poetry-dynamic-versioning
+
+      - name: Install Dependencies
+        run: poetry install
+
+      - name: Build
+        run: poetry build
+
+      - name: Publish to PyPI
+        if: github.event_name != 'pull_request'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}

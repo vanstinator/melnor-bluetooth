@@ -5,9 +5,11 @@ from typing import Any, List, Union
 
 from bleak import BleakClient, BleakError
 
+from melnor_bluetooth.parser.battery import parse_battery_value
 from melnor_bluetooth.parser.date import get_timestamp, time_shift
 
 from .constants import (
+    BATTERY_UUID,
     UPDATED_AT_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
@@ -104,6 +106,7 @@ class Valve:
 
 class Device:
 
+    _battery: int
     _connection: BleakClient
     _is_connected: bool
     _mac: str
@@ -111,6 +114,7 @@ class Device:
     _valve_count: int
 
     def __init__(self, mac: str, valve_count: int) -> None:
+        self._battery = 0
         self._is_connected = False
         self._mac = mac
         self._valves = []
@@ -156,17 +160,23 @@ class Device:
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
-        uuids = [VALVE_MANUAL_SETTINGS_UUID, VALVE_MANUAL_STATES_UUID]
+        uuids = [BATTERY_UUID, VALVE_MANUAL_SETTINGS_UUID, VALVE_MANUAL_STATES_UUID]
 
-        bytes_array = await asyncio.gather(
+        bytes_array: List[bytes] = await asyncio.gather(
             *[self._read(uuid) for uuid in uuids],
             return_exceptions=True,
         )
 
-        for i, bytes in enumerate(bytes_array):
+        for i, some_bytes in enumerate(bytes_array):
+
+            uuid = uuids[i]
+
+            if uuid == BATTERY_UUID:
+                self._battery = parse_battery_value(some_bytes)
+
             for valve in self._valves:
-                bytes = uuids.index(uuids[i])
-                valve.update_state(bytes_array[bytes], uuids[i])
+                some_bytes = uuids.index(uuid)
+                valve.update_state(bytes_array[some_bytes], uuids[i])
 
     async def _read(self, uuid: str) -> bytes:
         """Reads the given characteristic from the device"""
@@ -196,6 +206,11 @@ class Device:
         )
 
     @property
+    def battery_level(self) -> int:
+        """Returns the battery level of the device"""
+        return self._battery
+
+    @property
     def is_connected(self) -> bool:
         """Returns whether the device is currently connected"""
         return self._is_connected
@@ -219,14 +234,8 @@ class Device:
         if self._valve_count > 2:
             return self._valves[3]
 
-    # async def get_battery_life(self) -> int:
-    #     battery_characteristic = self._connection.getCharacteristics(
-    #         uuid=BATTERY_CHARACTERISTIC_UUID
-    #     )[0]
-    # return get_batt_val(battery_characteristic.read())
-
     def __str__(self) -> str:
-        str = f"{self.__class__.__name__}(\n    valves=(\n"
+        str = f"{self.__class__.__name__}(\n    battery={self._battery}\n    valves=(\n"
         for valve in self._valves:
             str += f"{valve}\n"
         return f"{str}    )\n)"

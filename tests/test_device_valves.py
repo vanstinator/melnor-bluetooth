@@ -56,7 +56,7 @@ def client_mock() -> Type:
 
 class TestValveZone:
     def test_zone_update_state(self):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 4)
 
         device.zone1.update_state(zone_manual_setting_bytes, VALVE_MANUAL_SETTINGS_UUID)
 
@@ -64,35 +64,79 @@ class TestValveZone:
         assert device.zone1.manual_watering_minutes == 5
 
     def test_zone_properties(self):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 4)
 
         device.zone1.is_watering = True
-        device.zone2.is_watering = True
-        device.zone3.is_watering = True
-        device.zone4.is_watering = True
 
         assert device.zone1.manual_watering_minutes == 20
 
     def test_zone_defaults(self):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 4)
         zone = Valve(0, device)
 
         assert zone.is_watering == False
         assert zone.manual_watering_minutes == 20
 
     def test_zone_byte_payload(self):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 2)
         zone = Valve(0, device)
 
         zone.is_watering = True
         zone.manual_watering_minutes = 10
 
-        assert zone.manual_setting_bytes == b"\x01\x00\n\x00\n"
+        assert zone._manual_setting_bytes() == b"\x01\x00\n\x00\n"
 
 
 class TestDevice:
+    def test_1_valve_device(self):
+        device = Device(TEST_UUID, 1)
+
+        assert device.zone1 is not None
+        assert device.zone2 is None
+        assert device.zone3 is None
+        assert device.zone4 is None
+
+    def test_2_valve_device(self):
+        device = Device(TEST_UUID, 2)
+
+        assert device.zone1 is not None
+        assert device.zone2 is not None
+        assert device.zone3 is None
+        assert device.zone4 is None
+
+    def test_1_valve_has_all_bytes(self):
+        device = Device(TEST_UUID, 1)
+
+        device.zone1.is_watering = True
+        device.zone1.manual_watering_minutes = 10
+
+        assert (
+            (
+                device._valves[0]._manual_setting_bytes()
+                + device._valves[1]._manual_setting_bytes()
+                + device._valves[2]._manual_setting_bytes()
+                + device._valves[3]._manual_setting_bytes()
+            )
+            == b"\x01\x00\n\x00\n\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14"  # noqa: E501
+        )
+
+    def test_1_valve_has_internal_valves(self):
+        device = Device(TEST_UUID, 1)
+
+        device.zone1.is_watering = True
+        device.zone1.manual_watering_minutes = 10
+
+        assert device.zone1 is not None
+        assert device.zone2 is None
+        assert device.zone3 is None
+        assert device.zone4 is None
+
+        assert device._valves[1] is not None
+        assert device._valves[2] is not None
+        assert device._valves[3] is not None
+
     async def test_device_connect_retry(self):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 2)
 
         failure = asyncio.Future()
         failure.set_exception(BleakError("Connection failed"))
@@ -111,7 +155,7 @@ class TestDevice:
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
     async def test_fetch(self, client_mock):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 4)
 
         read_manual_settings = asyncio.Future()
         read_manual_settings.set_result(
@@ -176,20 +220,23 @@ class TestDevice:
         # TODO: Test this more aggressively in date utils
         assert device.zone1.watering_end_time != 0
 
+        assert device.zone2 is not None
         assert device.zone2.is_watering == False
         assert device.zone2.manual_watering_minutes == 0
         assert device.zone2.watering_end_time == 0
 
+        assert device.zone3 is not None
         assert device.zone3.is_watering == False
         assert device.zone3.manual_watering_minutes == 0
         assert device.zone3.watering_end_time == 0
 
+        assert device.zone4 is not None
         assert device.zone4.is_watering == False
         assert device.zone4.manual_watering_minutes == 0
         assert device.zone4.watering_end_time == 0
 
     def test_str(self, snapshot):
-        device = Device(TEST_UUID)
+        device = Device(TEST_UUID, 4)
 
         actual = device.__str__()
 

@@ -88,6 +88,14 @@ class TestValveZone:
 
 
 class TestDevice:
+    def test_get_item(self):
+        device = Device(TEST_UUID, 4)
+
+        assert device["zone1"] is device.zone1
+        assert device["zone2"] is device.zone2
+        assert device["zone3"] is device.zone3
+        assert device["zone4"] is device.zone4
+
     def test_1_valve_device(self):
         device = Device(TEST_UUID, 1)
 

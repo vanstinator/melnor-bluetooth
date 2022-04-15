@@ -11,6 +11,7 @@ from mockito import ANY, mock, verify, when
 
 import melnor_bluetooth.device as device_module
 from melnor_bluetooth.constants import (
+    BATTERY_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
 )
@@ -165,6 +166,9 @@ class TestDevice:
     async def test_fetch(self, client_mock):
         device = Device(TEST_UUID, 4)
 
+        read_battery = asyncio.Future()
+        read_battery.set_result(b"\x02\x85")
+
         read_manual_settings = asyncio.Future()
         read_manual_settings.set_result(
             struct.pack(
@@ -207,6 +211,8 @@ class TestDevice:
             )
         )
 
+        when(client_mock).read_gatt_char(BATTERY_UUID).thenReturn(read_battery)
+
         when(client_mock).read_gatt_char(VALVE_MANUAL_SETTINGS_UUID).thenReturn(
             read_manual_settings
         )
@@ -221,7 +227,7 @@ class TestDevice:
 
         verify(client_mock).read_gatt_char(VALVE_MANUAL_SETTINGS_UUID)
 
-        print(device.zone1.watering_end_time)
+        assert device.battery_level == 30
 
         assert device.zone1.is_watering == False
         assert device.zone1.manual_watering_minutes == 0

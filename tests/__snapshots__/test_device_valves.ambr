@@ -1,6 +1,7 @@
 # name: TestDevice.test_str
   '
   Device(
+      battery=0
       valves=(
         Valve(id=0|is_watering=False|manual_minutes=20|seconds_left=0)
         Valve(id=1|is_watering=False|manual_minutes=20|seconds_left=0)

@@ -51,15 +51,7 @@ class ScanOptions(TypedDict):
     rssi: int
 
 
-async def ble_response(
-    callback: Callable[[Device], None],
-    options: ScanOptions = {
-        "name": "YM Timer",
-        "address": "00:00:00:00:00:00",
-        "rssi": 0,
-        "manufacturer_data": {13: b"\x59\x08"},
-    },
-):
+async def ble_response(callback: Callable[[Device], None], options: ScanOptions):
     device = BLEDevice(
         address=options["address"],
         rssi=options["rssi"],

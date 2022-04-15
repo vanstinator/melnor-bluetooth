@@ -3,7 +3,7 @@
 ![PyPI](https://img.shields.io/pypi/v/melnor-bluetooth?style=flat-square) ![Codecov branch](https://img.shields.io/codecov/c/github/vanstinator/melnor-bluetooth/main?style=flat-square) ![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/vanstinator/melnor-bluetooth/Build%20and%20Release/main?style=flat-square)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/melnor-bluetooth?style=flat-square)
 
-Melnor Bluetooth is a reverse engineered implementation of the Bluetooth protocal for all "smart" bluetooth-enabled watering valves under the Melnor, EcoAquastar, Eden, and other brands.
+Melnor Bluetooth is a reverse engineered implementation of the Bluetooth protocol for all "smart" bluetooth-enabled watering valves under the Melnor, EcoAquastar, Eden, and other brands.
 
 The library _should_ run on MacOS, Linux, or Windows. It's primarily developed on MacOS and other platforms likely have bugs. PRs and tests are welcome to improve quality across all platforms.
 
@@ -47,7 +47,6 @@ The python API has been designed to be as easy to use as possible. A few example
 ```python
   import asyncio
 
-  from melnor_bluetooth.constants import BATTERY_UUID
   from melnor_bluetooth.device import Device
 
   address = '00:00:00:00:00' # fill with your device mac address

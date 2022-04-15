@@ -1,5 +1,5 @@
 import asyncio
-from typing import Callable, Type
+from typing import Callable, Dict, Type, TypedDict
 
 import pytest
 from bleak import BleakScanner
@@ -44,6 +44,37 @@ async def recognized_ble(callback: Callable[[Device], None]):
     return _callback(device, advertisement_data, callback)
 
 
+class ScanOptions(TypedDict):
+    address: str
+    manufacturer_data: Dict[int, bytes]
+    name: str
+    rssi: int
+
+
+async def ble_response(
+    callback: Callable[[Device], None],
+    options: ScanOptions = {
+        "name": "YM Timer",
+        "address": "00:00:00:00:00:00",
+        "rssi": 0,
+        "manufacturer_data": {13: b"\x59\x08"},
+    },
+):
+    device = BLEDevice(
+        address=options["address"],
+        rssi=options["rssi"],
+        name=options["name"],
+        manufacturer_data=options["manufacturer_data"],
+    )
+
+    advertisement_data = AdvertisementData(
+        local_name=device.name,
+        manufacturer_data=device.metadata["manufacturer_data"],
+    )
+
+    _callback(device, advertisement_data, callback)
+
+
 @pytest.fixture
 def scanner_mock() -> Type:
 
@@ -71,7 +102,17 @@ class TestScanner:
 
         callback = spy(cb)
 
-        when(scanner_mock).start().thenReturn(recognized_ble(callback))
+        when(scanner_mock).start().thenReturn(
+            ble_response(
+                callback,
+                {
+                    "address": "00:00:00:00:00:00",
+                    "manufacturer_data": {13: b"\x59\x08"},
+                    "name": "YM Timer",
+                    "rssi": 0,
+                },
+            )
+        )
 
         await scanner(callback)
 
@@ -87,7 +128,43 @@ class TestScanner:
 
         callback = spy(cb)
 
-        when(scanner_mock).start().thenReturn(unrecognized_ble(callback))
+        when(scanner_mock).start().thenReturn(
+            ble_response(
+                callback,
+                {
+                    "address": "00:00:00:00:00:00",
+                    "manufacturer_data": {47: b"\x00\x00\x00\x00\x00\x00\x00\x00"},
+                    "name": "Something Else",
+                    "rssi": 0,
+                },
+            )
+        )
+
+        await scanner(callback)
+
+        verifyZeroInteractions(callback)
+
+        assert callback
+
+    async def test_scanner_malformed_device(self, scanner_mock):
+        def cb(device: Device):
+
+            assert device is None
+            assert device.zone2 is None
+
+        callback = spy(cb)
+
+        when(scanner_mock).start().thenReturn(
+            ble_response(
+                callback,
+                {
+                    "address": "00:00:00:00:00:00",
+                    "manufacturer_data": {13: b"\x00\x00\x00\x00\x00\x00\x00\x00"},
+                    "name": "YM Timer",
+                    "rssi": 0,
+                },
+            )
+        )
 
         await scanner(callback)
 

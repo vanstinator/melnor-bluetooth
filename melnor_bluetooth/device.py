@@ -1,7 +1,7 @@
 import asyncio
 import struct
 import sys
-from typing import Any
+from typing import Any, List, Union
 
 from bleak import BleakClient, BleakError
 
@@ -68,11 +68,11 @@ class Valve:
         self._is_watering = value
 
     @property
-    def manual_minutes(self) -> int:
+    def manual_watering_minutes(self) -> int:
         """Returns the number of seconds the zone has been manually watering for"""
         return self._manual_minutes
 
-    @manual_minutes.setter
+    @manual_watering_minutes.setter
     def manual_watering_minutes(self, value: int) -> None:
         """Set the number of seconds the zone should manually watering for"""
         self._manual_minutes = value
@@ -82,8 +82,7 @@ class Valve:
         """Unix timestamp in seconds when watering will end"""
         return self._end_time
 
-    @property
-    def manual_setting_bytes(self) -> bytes:
+    def _manual_setting_bytes(self) -> bytes:
         """Returns the 5 byte payload to be written to the device"""
 
         return struct.pack(
@@ -106,15 +105,22 @@ class Valve:
 class Device:
 
     _connection: BleakClient
-    _is_connected: bool = False
+    _is_connected: bool
     _mac: str
-    _valves: list[Valve] = []
+    _valves: List[Valve]
+    _valve_count: int
 
-    def __init__(self, mac: str) -> None:
+    def __init__(self, mac: str, valve_count: int) -> None:
+        self._is_connected = False
         self._mac = mac
+        self._valves = []
+        self._valve_count = valve_count
 
-        # TODO we need to figure out where to find the valve count
-        self._valves = [Valve(0, self), Valve(1, self), Valve(2, self), Valve(3, self)]
+        # The 1 and 2 valve devices still use 4 valve bytes
+        # So we'll instantiate 4 valves to mimic that behavior
+        # set of bytes too 🤦‍♂️
+        for i in range(4):
+            self._valves.append(Valve(i, self))
 
     def disconnected_callback(self, client):
         print("Disconnected from:", self._mac)
@@ -175,10 +181,10 @@ class Device:
         await self._connection.write_gatt_char(
             onOff.handle,
             (
-                self._valves[0].manual_setting_bytes
-                + self._valves[1].manual_setting_bytes
-                + self._valves[2].manual_setting_bytes
-                + self._valves[3].manual_setting_bytes
+                self._valves[0]._manual_setting_bytes()
+                + self._valves[1]._manual_setting_bytes()
+                + self._valves[2]._manual_setting_bytes()
+                + self._valves[3]._manual_setting_bytes()
             ),
             True,
         )
@@ -199,16 +205,19 @@ class Device:
         return self._valves[0]
 
     @property
-    def zone2(self) -> Valve:
-        return self._valves[1]
+    def zone2(self) -> Union[Valve, None]:
+        if self._valve_count > 1:
+            return self._valves[1]
 
     @property
-    def zone3(self) -> Valve:
-        return self._valves[2]
+    def zone3(self) -> Union[Valve, None]:
+        if self._valve_count > 2:
+            return self._valves[2]
 
     @property
-    def zone4(self) -> Valve:
-        return self._valves[3]
+    def zone4(self) -> Union[Valve, None]:
+        if self._valve_count > 2:
+            return self._valves[3]
 
     # async def get_battery_life(self) -> int:
     #     battery_characteristic = self._connection.getCharacteristics(
@@ -221,3 +230,13 @@ class Device:
         for valve in self._valves:
             str += f"{valve}\n"
         return f"{str}    )\n)"
+
+    def __getitem__(self, key: str) -> Union[Valve, None]:
+        if key == "zone1":
+            return self.zone1
+        elif key == "zone2":
+            return self.zone2
+        elif key == "zone3":
+            return self.zone3
+        elif key == "zone4":
+            return self.zone4

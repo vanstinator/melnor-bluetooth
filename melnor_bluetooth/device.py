@@ -7,9 +7,11 @@ from bleak import BleakClient, BleakError
 
 from melnor_bluetooth.parser.battery import parse_battery_value
 from melnor_bluetooth.parser.date import get_timestamp, time_shift
+from melnor_bluetooth.parser.manufacturer import parse_manufacturer
 
 from .constants import (
     BATTERY_UUID,
+    MODEL_NUMBER_UUID,
     UPDATED_AT_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
@@ -110,15 +112,19 @@ class Device:
     _connection: BleakClient
     _is_connected: bool
     _mac: str
+    _name: str
+    _sensor: bool
     _valves: List[Valve]
     _valve_count: int
 
-    def __init__(self, mac: str, valve_count: int) -> None:
+    def __init__(self, mac: str, name: str, sensor: bool, valves: int) -> None:
         self._battery = 0
         self._is_connected = False
         self._mac = mac
+        self._name = name
+        self._sensor = sensor
         self._valves = []
-        self._valve_count = valve_count
+        self._valve_count = valves
 
         # The 1 and 2 valve devices still use 4 valve bytes
         # So we'll instantiate 4 valves to mimic that behavior
@@ -160,7 +166,12 @@ class Device:
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
-        uuids = [BATTERY_UUID, VALVE_MANUAL_SETTINGS_UUID, VALVE_MANUAL_STATES_UUID]
+        uuids = [
+            BATTERY_UUID,
+            MODEL_NUMBER_UUID,
+            VALVE_MANUAL_SETTINGS_UUID,
+            VALVE_MANUAL_STATES_UUID,
+        ]
 
         bytes_array: List[bytes] = await asyncio.gather(
             *[self._read(uuid) for uuid in uuids],
@@ -173,6 +184,9 @@ class Device:
 
             if uuid == BATTERY_UUID:
                 self._battery = parse_battery_value(some_bytes)
+
+            if uuid == MODEL_NUMBER_UUID:
+                self._manufacturer = parse_manufacturer(some_bytes)
 
             for valve in self._valves:
                 some_bytes = uuids.index(uuid)
@@ -214,6 +228,26 @@ class Device:
     def is_connected(self) -> bool:
         """Returns whether the device is currently connected"""
         return self._is_connected
+
+    @property
+    def mac(self) -> str:
+        """Returns the MAC address of the device"""
+        return self._mac
+
+    @property
+    def manufacturer(self) -> str:
+        """Returns the manufacturer of the device"""
+        return self._manufacturer
+
+    @property
+    def name(self) -> str:
+        """Returns the name of the device"""
+        return self._name
+
+    @property
+    def valve_count(self) -> int:
+        """Returns the number of valves on the device"""
+        return self._valve_count
 
     @property
     def zone1(self) -> Valve:

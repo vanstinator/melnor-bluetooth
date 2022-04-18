@@ -132,7 +132,7 @@ class Device:
         for i in range(4):
             self._valves.append(Valve(i, self))
 
-    def disconnected_callback(self):
+    def disconnected_callback(self, client):
         print("Disconnected from:", self._mac)
         self._is_connected = False
 

@@ -1,6 +1,5 @@
 import asyncio
 import struct
-import sys
 from typing import Any, List, Union
 
 from bleak import BleakClient, BleakError
@@ -110,6 +109,7 @@ class Device:
 
     _battery: int
     _connection: BleakClient
+    _connection_lock = asyncio.Lock()
     _is_connected: bool
     _mac: str
     _name: str
@@ -132,33 +132,28 @@ class Device:
         for i in range(4):
             self._valves.append(Valve(i, self))
 
-    def disconnected_callback(self, client):
+    def disconnected_callback(self):
         print("Disconnected from:", self._mac)
-
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.connect())
+        self._is_connected = False
 
     async def connect(self) -> None:
+        if self._is_connected or self._connection_lock.locked():
+            return
 
-        try:
-            print("Connecting to:", self._mac)
-            self._connection = BleakClient(
-                self._mac, disconnected_callback=self.disconnected_callback
-            )
+        async with self._connection_lock:
+            try:
+                print("Connecting to:", self._mac)
+                self._connection = BleakClient(
+                    self._mac, disconnected_callback=self.disconnected_callback
+                )
 
-            await self._connection.connect()
-            self._is_connected = True
-            print("Success:", self._mac)
+                await self._connection.connect()
+                self._is_connected = True
+                print("Success:", self._mac)
 
-        except BleakError:
-            print("Failed to connect to:", self._mac)
-            self._is_connected = False
-
-            if "unittest" not in sys.modules.keys():
-                await asyncio.sleep(5)
-
-            print("Retrying...")
-            await self.connect()
+            except BleakError:
+                print("Failed to connect to:", self._mac)
+                self._is_connected = False
 
     async def disconnect(self) -> None:
         await self._connection.disconnect()
@@ -173,24 +168,30 @@ class Device:
             VALVE_MANUAL_STATES_UUID,
         ]
 
-        bytes_array: List[bytes] = await asyncio.gather(
-            *[self._read(uuid) for uuid in uuids],
-            return_exceptions=True,
-        )
+        try:
+            bytes_array: List[bytes] = await asyncio.gather(
+                *[self._read(uuid) for uuid in uuids],
+                return_exceptions=True,
+            )
 
-        for i, some_bytes in enumerate(bytes_array):
+            for i, some_bytes in enumerate(bytes_array):
 
-            uuid = uuids[i]
+                uuid = uuids[i]
 
-            if uuid == BATTERY_UUID:
-                self._battery = parse_battery_value(some_bytes)
+                if uuid == BATTERY_UUID:
+                    self._battery = parse_battery_value(some_bytes)
 
-            if uuid == MODEL_NUMBER_UUID:
-                self._manufacturer = parse_manufacturer(some_bytes)
+                if uuid == MODEL_NUMBER_UUID:
+                    self._manufacturer = parse_manufacturer(some_bytes)
 
-            for valve in self._valves:
-                some_bytes = uuids.index(uuid)
-                valve.update_state(bytes_array[some_bytes], uuids[i])
+                for valve in self._valves:
+                    some_bytes = uuids.index(uuid)
+                    valve.update_state(bytes_array[some_bytes], uuids[i])
+
+        except BleakError as e:
+            # Swallow this error if the device is disconnected
+            if self._is_connected:
+                raise e
 
     async def _read(self, uuid: str) -> bytes:
         """Reads the given characteristic from the device"""

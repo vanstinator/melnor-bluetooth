@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 
 import freezegun
 import pytest
-from bleak import BleakClient, BleakError
-from mockito import ANY, mock, verify, when
+from bleak import BleakClient
+from mockito import ANY, expect, mock, verify, when
 
 import melnor_bluetooth.device as device_module
 from melnor_bluetooth.constants import (
@@ -153,23 +153,46 @@ class TestDevice:
         assert device._valves[2] is not None
         assert device._valves[3] is not None
 
-    async def test_device_connect_retry(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
+    async def test_device_connect_lock(self):
+        with expect(BleakClient, times=1).connect():
+            device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
 
-        failure = asyncio.Future()
-        failure.set_exception(BleakError("Connection failed"))
+            success = asyncio.Future()
 
-        success = asyncio.Future()
-        success.set_result(True)
+            when(BleakClient).connect().thenReturn(success)
+            when(device_module).BleakClient(
+                TEST_UUID, disconnected_callback=ANY
+            ).thenReturn(BleakClient)
 
-        when(BleakClient).connect().thenReturn(failure).thenReturn(success)
-        when(device_module).BleakClient(
-            TEST_UUID, disconnected_callback=ANY
-        ).thenReturn(BleakClient)
+            # We'll verify we only call the bleak client connect once
+            loop = asyncio.get_event_loop()
+            one = loop.create_task(device.connect())
+            two = loop.create_task(device.connect())
+            three = loop.create_task(device.connect())
+            four = loop.create_task(device.connect())
 
-        await device.connect()
+            success.set_result(True)
 
-        verify(BleakClient, times=2).connect()
+            # await the tasks to ensure they're done
+            await asyncio.gather(one, two, three, four)
+
+    async def test_device_connect_noop_when_connected(self):
+        with expect(BleakClient, times=1).connect():
+
+            device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
+
+            success = asyncio.Future()
+            success.set_result(True)
+
+            when(BleakClient).connect().thenReturn(success)
+            when(device_module).BleakClient(
+                TEST_UUID, disconnected_callback=ANY
+            ).thenReturn(BleakClient)
+
+            await device.connect()
+            await device.connect()
+            await device.connect()
+            await device.connect()
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
     async def test_fetch(self, client_mock):

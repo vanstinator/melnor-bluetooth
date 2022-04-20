@@ -46,7 +46,7 @@ def _callback(
         callback(
             Device(
                 mac=ble_device.address,
-                name=model_name,
+                model=model_name,
                 sensor=model_sensors,
                 valves=model_valves,
             )

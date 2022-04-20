@@ -59,7 +59,7 @@ def client_mock() -> Type:
 
 class TestValveZone:
     def test_zone_update_state(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
 
         device.zone1.update_state(zone_manual_setting_bytes, VALVE_MANUAL_SETTINGS_UUID)
 
@@ -67,39 +67,40 @@ class TestValveZone:
         assert device.zone1.manual_watering_minutes == 5
 
     def test_zone_properties(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
 
         device.zone1.is_watering = True
 
         assert device.zone1.manual_watering_minutes == 20
 
     def test_zone_defaults(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
         zone = Valve(0, device)
 
         assert zone.is_watering == False
         assert zone.manual_watering_minutes == 20
 
     def test_zone_byte_payload(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=2)
         zone = Valve(0, device)
 
         zone.is_watering = True
         zone.manual_watering_minutes = 10
 
-        assert zone._manual_setting_bytes() == b"\x01\x00\n\x00\n"
+        assert zone._manual_setting_bytes() == b"\x01\x00\n\x00\n"  # type: ignore
 
 
 class TestDevice:
     def test_properties(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
 
-        assert device.name == "93280"
+        assert device.name == "4 Valve Timer"
+        assert device.model == "93280"
         assert device.mac == TEST_UUID
         assert device.valve_count == 4
 
     def test_get_item(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
 
         assert device["zone1"] is device.zone1
         assert device["zone2"] is device.zone2
@@ -107,7 +108,7 @@ class TestDevice:
         assert device["zone4"] is device.zone4
 
     def test_1_valve_device(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=1)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=1)
 
         assert device.zone1 is not None
         assert device.zone2 is None
@@ -115,7 +116,7 @@ class TestDevice:
         assert device.zone4 is None
 
     def test_2_valve_device(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=2)
 
         assert device.zone1 is not None
         assert device.zone2 is not None
@@ -123,23 +124,23 @@ class TestDevice:
         assert device.zone4 is None
 
     def test_1_valve_has_all_bytes(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=1)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=1)
 
         device.zone1.is_watering = True
         device.zone1.manual_watering_minutes = 10
 
         assert (
             (
-                device._valves[0]._manual_setting_bytes()
-                + device._valves[1]._manual_setting_bytes()
-                + device._valves[2]._manual_setting_bytes()
-                + device._valves[3]._manual_setting_bytes()
+                device._valves[0]._manual_setting_bytes()  # type:ignore
+                + device._valves[1]._manual_setting_bytes()  # type:ignore
+                + device._valves[2]._manual_setting_bytes()  # type:ignore
+                + device._valves[3]._manual_setting_bytes()  # type:ignore
             )
             == b"\x01\x00\n\x00\n\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14"  # noqa: E501
         )
 
     def test_1_valve_has_internal_valves(self):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=1)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=1)
 
         device.zone1.is_watering = True
         device.zone1.manual_watering_minutes = 10
@@ -149,13 +150,13 @@ class TestDevice:
         assert device.zone3 is None
         assert device.zone4 is None
 
-        assert device._valves[1] is not None
-        assert device._valves[2] is not None
-        assert device._valves[3] is not None
+        assert device._valves[1] is not None  # type:ignore
+        assert device._valves[2] is not None  # type:ignore
+        assert device._valves[3] is not None  # type:ignore
 
     async def test_device_connect_lock(self):
         with expect(BleakClient, times=1).connect():
-            device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
+            device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=2)
 
             success = asyncio.Future()
 
@@ -179,7 +180,7 @@ class TestDevice:
     async def test_device_connect_noop_when_connected(self):
         with expect(BleakClient, times=1).connect():
 
-            device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=2)
+            device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=2)
 
             success = asyncio.Future()
             success.set_result(True)
@@ -196,7 +197,7 @@ class TestDevice:
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
     async def test_fetch(self, client_mock):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
 
         read_battery = asyncio.Future()
         read_battery.set_result(b"\x02\x85")
@@ -290,7 +291,7 @@ class TestDevice:
         assert device.zone4.watering_end_time == 0
 
     def test_str(self, snapshot):
-        device = Device(mac=TEST_UUID, name="93280", sensor=False, valves=4)
+        device = Device(mac=TEST_UUID, model="93280", sensor=False, valves=4)
 
         actual = device.__str__()
 

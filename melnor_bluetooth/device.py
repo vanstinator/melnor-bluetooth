@@ -112,16 +112,15 @@ class Device:
     _connection_lock = asyncio.Lock()
     _is_connected: bool
     _mac: str
-    _name: str
     _sensor: bool
     _valves: List[Valve]
     _valve_count: int
 
-    def __init__(self, mac: str, name: str, sensor: bool, valves: int) -> None:
+    def __init__(self, mac: str, model: str, sensor: bool, valves: int) -> None:
         self._battery = 0
         self._is_connected = False
         self._mac = mac
-        self._name = name
+        self._model = model
         self._sensor = sensor
         self._valves = []
         self._valve_count = valves
@@ -241,9 +240,14 @@ class Device:
         return self._manufacturer
 
     @property
+    def model(self) -> str:
+        """Returns the name of the device"""
+        return self._model
+
+    @property
     def name(self) -> str:
         """Returns the name of the device"""
-        return self._name
+        return f"{self._valve_count} Valve Timer"
 
     @property
     def valve_count(self) -> int:

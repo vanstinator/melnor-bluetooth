@@ -61,6 +61,10 @@ class Valve:
             self._end_time = parsed_time - time_shift() if parsed_time != 0 else 0
 
     @property
+    def id(self) -> int:
+        return self._id
+
+    @property
     def is_watering(self) -> bool:
         """Returns whether the zone is currently watering"""
         return self._is_watering == 1

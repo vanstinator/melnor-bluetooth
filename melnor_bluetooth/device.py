@@ -112,6 +112,7 @@ class Valve:
 class Device:
 
     _battery: int
+    _brand: str
     _connection: BleakClient
     _connection_lock = asyncio.Lock()
     _is_connected: bool
@@ -120,10 +121,13 @@ class Device:
     _valves: List[Valve]
     _valve_count: int
 
-    def __init__(self, mac: str, model: str, sensor: bool, valves: int) -> None:
+    def __init__(
+        self, mac: str, brand: str, model: str, sensor: bool, valves: int
+    ) -> None:
         self._battery = 0
         self._is_connected = False
         self._mac = mac
+        self._brand = brand
         self._model = model
         self._sensor = sensor
         self._valves = []
@@ -229,6 +233,11 @@ class Device:
         return self._battery
 
     @property
+    def brand(self) -> str:
+        """Returns the manufacturer of the device"""
+        return self._brand
+
+    @property
     def is_connected(self) -> bool:
         """Returns whether the device is currently connected"""
         return self._is_connected
@@ -237,11 +246,6 @@ class Device:
     def mac(self) -> str:
         """Returns the MAC address of the device"""
         return self._mac
-
-    @property
-    def manufacturer(self) -> str:
-        """Returns the manufacturer of the device"""
-        return self._manufacturer
 
     @property
     def model(self) -> str:
@@ -260,20 +264,24 @@ class Device:
 
     @property
     def zone1(self) -> Valve:
+        """Returns the first zone on the device"""
         return self._valves[0]
 
     @property
     def zone2(self) -> Union[Valve, None]:
+        """Returns the second zone on the device"""
         if self._valve_count > 1:
             return self._valves[1]
 
     @property
     def zone3(self) -> Union[Valve, None]:
+        """Returns the third zone on the device"""
         if self._valve_count > 2:
             return self._valves[2]
 
     @property
     def zone4(self) -> Union[Valve, None]:
+        """Returns the fourth zone on the device"""
         if self._valve_count > 2:
             return self._valves[3]
 

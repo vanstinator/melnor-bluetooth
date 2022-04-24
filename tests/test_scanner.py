@@ -5,7 +5,7 @@ import pytest
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
-from mockito import ANY, mock, spy, verify, verifyZeroInteractions, when
+from mockito import ANY, mock, spy, verify, when
 
 import melnor_bluetooth.scanner as scanner_module
 from melnor_bluetooth.device import Device
@@ -115,7 +115,8 @@ class TestScanner:
     async def test_scanner_unexpected_device(self, scanner_mock):
         def cb(device: Device):
 
-            assert device is None
+            assert device.model == ""
+            assert device.brand == ""
             assert device.zone2 is None
 
         callback = spy(cb)
@@ -134,14 +135,13 @@ class TestScanner:
 
         await scanner(callback)
 
-        verifyZeroInteractions(callback)
-
         assert callback
 
     async def test_scanner_malformed_device(self, scanner_mock):
         def cb(device: Device):
 
-            assert device is None
+            assert device.model == ""
+            assert device.brand == ""
             assert device.zone2 is None
 
         callback = spy(cb)
@@ -159,7 +159,5 @@ class TestScanner:
         )
 
         await scanner(callback)
-
-        verifyZeroInteractions(callback)
 
         assert callback

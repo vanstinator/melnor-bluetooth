@@ -6,7 +6,12 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from melnor_bluetooth.constants import MODEL_NAME_MAP, MODEL_SENSOR_MAP, MODEL_VALVE_MAP
+from melnor_bluetooth.constants import (
+    MODEL_BRAND_MAP,
+    MODEL_NAME_MAP,
+    MODEL_SENSOR_MAP,
+    MODEL_VALVE_MAP,
+)
 
 from .device import Device
 
@@ -29,23 +34,15 @@ def _callback(
             + f" - RSSI: {ble_device.rssi}"
         )
 
-        model_name = MODEL_NAME_MAP.get(model_number)
-        model_valves = MODEL_VALVE_MAP.get(model_number)
-        model_sensors = MODEL_SENSOR_MAP.get(model_number)
-
-        if model_name is None or model_valves is None or model_sensors is None:
-            # We don't know about this model info
-            print(
-                "Missing required model info"
-                + f" - name: {model_number}"
-                + f" - valves: {model_valves}"
-                + f" - sensors: {model_sensors}"
-            )
-            return
+        model_brand = MODEL_BRAND_MAP.get(model_number) or ""
+        model_name = MODEL_NAME_MAP.get(model_number) or ""
+        model_valves = MODEL_VALVE_MAP.get(model_number) or 1
+        model_sensors = MODEL_SENSOR_MAP.get(model_number) or False
 
         callback(
             Device(
                 mac=ble_device.address,
+                brand=model_brand,
                 model=model_name,
                 sensor=model_sensors,
                 valves=model_valves,

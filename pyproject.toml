@@ -1,6 +1,20 @@
 [tool.poetry]
 authors = ["Justin Vanderhooft <justinvdhooft@gmail.com>"]
-description = "A small python library for discovery and interacting with Melnor, Aquastar, etc bluetooth water timers."
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Home Automation",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+description = "A small python library for discovery and interacting with Melnor, Eden, etc Bluetooth water timers."
+keywords = [
+    "bluetooth",
+    "melnor",
+    "home automation",
+    "irrigation",
+    "gardening"
+]
 license = "MIT"
 name = "melnor-bluetooth"
 readme = "README.md"

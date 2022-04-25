@@ -8,11 +8,10 @@ from bleak.backends.scanner import AdvertisementData
 from mockito import ANY, mock, spy, verify, when
 
 import melnor_bluetooth.scanner as scanner_module
-from melnor_bluetooth.device import Device
 from melnor_bluetooth.scanner import _callback, scanner
 
 
-async def unrecognized_ble(callback: Callable[[Device], None]):
+async def unrecognized_ble(callback: Callable[[str], None]):
     device = BLEDevice(
         address="00:00:00:00:00:00",
         rssi=0,
@@ -28,7 +27,7 @@ async def unrecognized_ble(callback: Callable[[Device], None]):
     return _callback(device, advertisement_data, callback)
 
 
-async def recognized_ble(callback: Callable[[Device], None]):
+async def recognized_ble(callback: Callable[[str], None]):
     device = BLEDevice(
         address="00:00:00:00:00:00",
         rssi=0,
@@ -51,7 +50,7 @@ class ScanOptions(TypedDict):
     rssi: int
 
 
-async def ble_response(callback: Callable[[Device], None], options: ScanOptions):
+async def ble_response(callback: Callable[[str], None], options: ScanOptions):
     device = BLEDevice(
         address=options["address"],
         rssi=options["rssi"],
@@ -87,10 +86,8 @@ def scanner_mock() -> Type:
 
 class TestScanner:
     async def test_scanner_expected_device(self, scanner_mock):
-        def cb(device: Device):
-
-            assert device is not None
-            assert device.zone2 is not None
+        def cb(address: str):
+            assert address is not None
 
         callback = spy(cb)
 
@@ -113,11 +110,10 @@ class TestScanner:
         assert callback
 
     async def test_scanner_unexpected_device(self, scanner_mock):
-        def cb(device: Device):
+        """Test that a device that is not recognized by the scanner is not added"""
 
-            assert device.model == ""
-            assert device.brand == ""
-            assert device.zone2 is None
+        def cb(address: str):
+            assert address is not None
 
         callback = spy(cb)
 
@@ -138,11 +134,8 @@ class TestScanner:
         assert callback
 
     async def test_scanner_malformed_device(self, scanner_mock):
-        def cb(device: Device):
-
-            assert device.model == ""
-            assert device.brand == ""
-            assert device.zone2 is None
+        def cb(address: str):
+            assert address is not None
 
         callback = spy(cb)
 

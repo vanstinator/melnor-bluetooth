@@ -12,27 +12,26 @@ address = "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A"
 devices: List[Device] = []
 
 
-async def detection_callback(device: Device):
+def detection_callback(address: str):
     # if advertisement_data.local_name is not None:
     #     if "YM Timer" in advertisement_data.local_name:
 
-    has_device = [d for d in devices if d._mac == device._mac]
+    has_device = [d for d in devices if d.mac == address]
 
     if len(has_device) == 0:
+        print(address)
+        device = Device(address)
         devices.append(device)
         print(f"Found device: {device.__str__()}")
-    else:
-        print(f"Device {device._mac} already connected")
 
 
 async def main():
 
-    # device = Device(address)
+    await scanner(detection_callback, scan_timeout_seconds=10)
 
-    # await device.connect()
-
-    while len(devices) == 0:
-        await scanner(detection_callback, scan_timeout_seconds=5)
+    if len(devices) == 0:
+        print("No devices found")
+        return
 
     device = devices[0]
 

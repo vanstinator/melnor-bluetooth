@@ -138,9 +138,6 @@ class Device:
     async def _init(self):
         """Initializes the device"""
 
-        if not self._is_connected or self._connection is None:
-            return
-
         manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
 
         string = manufacturer_data.decode("utf-8")

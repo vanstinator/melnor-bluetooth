@@ -1,4 +1,6 @@
 import asyncio
+import os
+import platform
 import struct
 from typing import Any, List, Union
 
@@ -6,11 +8,10 @@ from bleak import BleakClient, BleakError
 
 from melnor_bluetooth.parser.battery import parse_battery_value
 from melnor_bluetooth.parser.date import get_timestamp, time_shift
-from melnor_bluetooth.parser.manufacturer import parse_manufacturer
 
 from .constants import (
     BATTERY_UUID,
-    MODEL_NUMBER_UUID,
+    MANUFACTURER_UUID,
     UPDATED_AT_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
@@ -117,27 +118,35 @@ class Device:
     _connection_lock = asyncio.Lock()
     _is_connected: bool
     _mac: str
+    _model: str
     _sensor: bool
     _valves: List[Valve]
     _valve_count: int
 
-    def __init__(
-        self, mac: str, brand: str, model: str, sensor: bool, valves: int
-    ) -> None:
+    def __init__(self, mac: str) -> None:
         self._battery = 0
         self._is_connected = False
         self._mac = mac
-        self._brand = brand
-        self._model = model
-        self._sensor = sensor
         self._valves = []
-        self._valve_count = valves
 
         # The 1 and 2 valve devices still use 4 valve bytes
         # So we'll instantiate 4 valves to mimic that behavior
         # set of bytes too 🤦‍♂️
         for i in range(4):
             self._valves.append(Valve(i, self))
+
+    async def _init(self):
+        """Initializes the device"""
+
+        if not self._is_connected or self._connection is None:
+            return
+
+        manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
+
+        string = manufacturer_data.decode("utf-8")
+
+        self._model = string[0:5]
+        self._valve_count = int(string[6:7])
 
     def disconnected_callback(self, client):
         print("Disconnected from:", self._mac)
@@ -156,6 +165,9 @@ class Device:
 
                 await self._connection.connect()
                 self._is_connected = True
+
+                await self._init()
+
                 print("Success:", self._mac)
 
             except BleakError:
@@ -165,12 +177,15 @@ class Device:
     async def disconnect(self) -> None:
         await self._connection.disconnect()
 
+        # bluez tends to hang on to a device connection for too long
+        if platform.system() == "Linux":
+            os.system(f"bluetoothctl remove {self.mac}")
+
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
         uuids = [
             BATTERY_UUID,
-            MODEL_NUMBER_UUID,
             VALVE_MANUAL_SETTINGS_UUID,
             VALVE_MANUAL_STATES_UUID,
         ]
@@ -188,17 +203,14 @@ class Device:
                 if uuid == BATTERY_UUID:
                     self._battery = parse_battery_value(some_bytes)
 
-                if uuid == MODEL_NUMBER_UUID:
-                    self._manufacturer = parse_manufacturer(some_bytes)
-
                 for valve in self._valves:
                     some_bytes = uuids.index(uuid)
                     valve.update_state(bytes_array[some_bytes], uuids[i])
 
-        except BleakError as e:
+        except BleakError as error:
             # Swallow this error if the device is disconnected
             if self._is_connected:
-                raise e
+                raise error
 
     async def _read(self, uuid: str) -> bytes:
         """Reads the given characteristic from the device"""
@@ -208,10 +220,12 @@ class Device:
     async def push_state(self) -> None:
         """Pushes the state of the device to the device"""
 
-        onOff = self._connection.services.get_characteristic(VALVE_MANUAL_SETTINGS_UUID)
+        on_off = self._connection.services.get_characteristic(
+            VALVE_MANUAL_SETTINGS_UUID
+        )
 
         await self._connection.write_gatt_char(
-            onOff.handle,
+            on_off.handle,
             (
                 self._valves[0]._manual_setting_bytes()
                 + self._valves[1]._manual_setting_bytes()
@@ -221,10 +235,10 @@ class Device:
             True,
         )
 
-        updatedAt = self._connection.services.get_characteristic(UPDATED_AT_UUID)
+        updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
 
         await self._connection.write_gatt_char(
-            updatedAt.handle, struct.pack(">I", get_timestamp()), True
+            updated_at.handle, struct.pack(">I", get_timestamp()), True
         )
 
     @property

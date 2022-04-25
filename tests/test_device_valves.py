@@ -12,8 +12,7 @@ from mockito import ANY, expect, mock, verify, when
 import melnor_bluetooth.device as device_module
 from melnor_bluetooth.constants import (
     BATTERY_UUID,
-    MELNOR,
-    MODEL_NUMBER_UUID,
+    MANUFACTURER_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
 )
@@ -52,44 +51,41 @@ def client_mock() -> Type:
         client_mock
     )
 
+    read_manufacturer = asyncio.Future()
+    read_manufacturer.set_result(b"111110400")
+    when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(read_manufacturer)
+
     when(client_mock).connect().thenReturn(connect)
 
     return client_mock
 
 
 class TestValveZone:
-    def test_zone_update_state(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+    def test_zone_update_state(self, client_mock):
+        device = Device(mac=TEST_UUID)
 
         device.zone1.update_state(zone_manual_setting_bytes, VALVE_MANUAL_SETTINGS_UUID)
 
         assert device.zone1.is_watering == True
         assert device.zone1.manual_watering_minutes == 5
 
-    def test_zone_properties(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+    def test_zone_properties(self, client_mock):
+        device = Device(mac=TEST_UUID)
 
         device.zone1.is_watering = True
 
         assert device.zone1.manual_watering_minutes == 20
 
-    def test_zone_defaults(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+    def test_zone_defaults(self, client_mock):
+        device = Device(mac=TEST_UUID)
+
         zone = Valve(0, device)
 
         assert zone.is_watering == False
         assert zone.manual_watering_minutes == 20
 
-    def test_zone_byte_payload(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=2
-        )
+    def test_zone_byte_payload(self, client_mock):
+        device = Device(mac=TEST_UUID)
         zone = Valve(0, device)
 
         zone.is_watering = True
@@ -99,50 +95,73 @@ class TestValveZone:
 
 
 class TestDevice:
-    def test_properties(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+    async def test_properties(self, client_mock):
+
+        device = Device(mac=TEST_UUID)
+
+        await device.connect()
 
         assert device.name == "4 Valve Timer"
-        assert device.model == "93280"
+        assert device.model == "11111"
         assert device.mac == TEST_UUID
         assert device.valve_count == 4
 
-    def test_get_item(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+    async def test_get_item(self, client_mock):
+        device = Device(mac=TEST_UUID)
+
+        await device.connect()
 
         assert device["zone1"] is device.zone1
         assert device["zone2"] is device.zone2
         assert device["zone3"] is device.zone3
         assert device["zone4"] is device.zone4
 
-    def test_1_valve_device(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=1
+    async def test_1_valve_device(self, client_mock):
+
+        read_manufacturer = asyncio.Future()
+        read_manufacturer.set_result(b"111110100")
+        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
+            read_manufacturer
         )
+
+        device = Device(mac=TEST_UUID)
+
+        await device.connect()
 
         assert device.zone1 is not None
         assert device.zone2 is None
         assert device.zone3 is None
         assert device.zone4 is None
 
-    def test_2_valve_device(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=2
+    async def test_2_valve_device(self, client_mock):
+
+        device = Device(mac=TEST_UUID)
+
+        read_manufacturer = asyncio.Future()
+        read_manufacturer.set_result(b"111110200")
+
+        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
+            read_manufacturer
         )
+
+        await device.connect()
 
         assert device.zone1 is not None
         assert device.zone2 is not None
         assert device.zone3 is None
         assert device.zone4 is None
 
-    def test_1_valve_has_all_bytes(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=1
+    async def test_1_valve_has_all_bytes(self, client_mock):
+
+        read_manufacturer = asyncio.Future()
+        read_manufacturer.set_result(b"111110100")
+        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
+            read_manufacturer
         )
+
+        device = Device(mac=TEST_UUID)
+
+        await device.connect()
 
         device.zone1.is_watering = True
         device.zone1.manual_watering_minutes = 10
@@ -157,10 +176,17 @@ class TestDevice:
             == b"\x01\x00\n\x00\n\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14"  # noqa: E501
         )
 
-    def test_1_valve_has_internal_valves(self):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=1
+    async def test_1_valve_has_internal_valves(self, client_mock):
+
+        read_manufacturer = asyncio.Future()
+        read_manufacturer.set_result(b"111110100")
+        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
+            read_manufacturer
         )
+
+        device = Device(mac=TEST_UUID)
+
+        await device.connect()
 
         device.zone1.is_watering = True
         device.zone1.manual_watering_minutes = 10
@@ -174,18 +200,22 @@ class TestDevice:
         assert device._valves[2] is not None  # type:ignore
         assert device._valves[3] is not None  # type:ignore
 
-    async def test_device_connect_lock(self):
+    async def test_device_connect_lock(self, client_mock):
         with expect(BleakClient, times=1).connect():
-            device = Device(
-                mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=2
-            )
+            device = Device(mac=TEST_UUID)
 
             success = asyncio.Future()
 
             when(BleakClient).connect().thenReturn(success)
             when(device_module).BleakClient(
                 TEST_UUID, disconnected_callback=ANY
-            ).thenReturn(BleakClient)
+            ).thenReturn(client_mock)
+
+            read_manufacturer = asyncio.Future()
+            read_manufacturer.set_result(b"111110100")
+            when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
+                read_manufacturer
+            )
 
             # We'll verify we only call the bleak client connect once
             loop = asyncio.get_event_loop()
@@ -199,12 +229,10 @@ class TestDevice:
             # await the tasks to ensure they're done
             await asyncio.gather(one, two, three, four)
 
-    async def test_device_connect_noop_when_connected(self):
+    async def test_device_connect_noop_when_connected(self, client_mock):
         with expect(BleakClient, times=1).connect():
 
-            device = Device(
-                mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=2
-            )
+            device = Device(mac=TEST_UUID)
 
             success = asyncio.Future()
             success.set_result(True)
@@ -212,7 +240,13 @@ class TestDevice:
             when(BleakClient).connect().thenReturn(success)
             when(device_module).BleakClient(
                 TEST_UUID, disconnected_callback=ANY
-            ).thenReturn(BleakClient)
+            ).thenReturn(client_mock)
+
+            read_manufacturer = asyncio.Future()
+            read_manufacturer.set_result(b"111110100")
+            when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
+                read_manufacturer
+            )
 
             await device.connect()
             await device.connect()
@@ -221,15 +255,13 @@ class TestDevice:
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
     async def test_fetch(self, client_mock):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+        device = Device(mac=TEST_UUID)
 
         read_battery = asyncio.Future()
         read_battery.set_result(b"\x02\x85")
 
         read_manufacturer = asyncio.Future()
-        read_manufacturer.set_result(b"ML_001")
+        read_manufacturer.set_result(b"111110400")
 
         read_manual_settings = asyncio.Future()
         read_manual_settings.set_result(
@@ -273,11 +305,11 @@ class TestDevice:
             )
         )
 
-        when(client_mock).read_gatt_char(BATTERY_UUID).thenReturn(read_battery)
-
-        when(client_mock).read_gatt_char(MODEL_NUMBER_UUID).thenReturn(
+        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
             read_manufacturer
         )
+
+        when(client_mock).read_gatt_char(BATTERY_UUID).thenReturn(read_battery)
 
         when(client_mock).read_gatt_char(VALVE_MANUAL_SETTINGS_UUID).thenReturn(
             read_manual_settings
@@ -294,32 +326,30 @@ class TestDevice:
         verify(client_mock).read_gatt_char(VALVE_MANUAL_SETTINGS_UUID)
 
         assert device.battery_level == 30
-        assert device.brand == MELNOR
+        # assert device.brand == MELNOR
 
-        assert device.zone1.is_watering == False
+        assert device.zone1.is_watering is False
         assert device.zone1.manual_watering_minutes == 0
         # TODO: Test this more aggressively in date utils
         assert device.zone1.watering_end_time != 0
 
         assert device.zone2 is not None
-        assert device.zone2.is_watering == False
+        assert device.zone2.is_watering is False
         assert device.zone2.manual_watering_minutes == 0
         assert device.zone2.watering_end_time == 0
 
         assert device.zone3 is not None
-        assert device.zone3.is_watering == False
+        assert device.zone3.is_watering is False
         assert device.zone3.manual_watering_minutes == 0
         assert device.zone3.watering_end_time == 0
 
         assert device.zone4 is not None
-        assert device.zone4.is_watering == False
+        assert device.zone4.is_watering is False
         assert device.zone4.manual_watering_minutes == 0
         assert device.zone4.watering_end_time == 0
 
     def test_str(self, snapshot):
-        device = Device(
-            mac=TEST_UUID, brand=MELNOR, model="93280", sensor=False, valves=4
-        )
+        device = Device(mac=TEST_UUID)
 
         actual = device.__str__()
 

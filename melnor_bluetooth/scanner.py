@@ -6,16 +6,9 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from melnor_bluetooth.constants import (
-    MODEL_BRAND_MAP,
-    MODEL_NAME_MAP,
-    MODEL_SENSOR_MAP,
-    MODEL_VALVE_MAP,
-)
+DeviceCallbackType = Callable[[str], None]
 
-from .device import Device
-
-DeviceCallbackType = Callable[[Device], None]
+lock = asyncio.Lock()
 
 
 def _callback(
@@ -25,29 +18,12 @@ def _callback(
 ):
     if ble_advertisement_data.manufacturer_data.get(13) is not None:
 
-        data = ble_advertisement_data.manufacturer_data[13]
-        model_number = f"{data[0]:02x}{data[1]:02x}"
+        #  we need to ignore the aadvertisement data for now
+        # https://github.com/vanstinator/melnor-bluetooth/issues/17
+        # data = ble_advertisement_data.manufacturer_data[13]
+        # model_number = f"{data[0]:02x}{data[1]:02x}"
 
-        print(
-            f"Address: {ble_device.address}"
-            + f" - Model Number: {model_number}"
-            + f" - RSSI: {ble_device.rssi}"
-        )
-
-        model_brand = MODEL_BRAND_MAP.get(model_number) or ""
-        model_name = MODEL_NAME_MAP.get(model_number) or ""
-        model_valves = MODEL_VALVE_MAP.get(model_number) or 1
-        model_sensors = MODEL_SENSOR_MAP.get(model_number) or False
-
-        callback(
-            Device(
-                mac=ble_device.address,
-                brand=model_brand,
-                model=model_name,
-                sensor=model_sensors,
-                valves=model_valves,
-            )
-        )
+        callback(ble_device.address)
 
 
 async def scanner(
@@ -61,15 +37,17 @@ async def scanner(
     :param scan_timeout_seconds: Timeout in seconds. Default 60 seconds
     """
 
-    scanner = BleakScanner()
+    _scanner = BleakScanner()
 
-    scanner.register_detection_callback(
-        lambda BLEDevice, AdvertisementData: _callback(
-            BLEDevice, AdvertisementData, callback
-        )
-    )
+    def _callback_wrapper(
+        ble_device: BLEDevice,
+        ble_advertisement_data: AdvertisementData,
+    ):
+        _callback(ble_device, ble_advertisement_data, callback)
 
-    await scanner.start()
+    _scanner.register_detection_callback(_callback_wrapper)
+
+    await _scanner.start()
     if "unittest" not in sys.modules.keys():
         await asyncio.sleep(scan_timeout_seconds)
-    await scanner.stop()
+    await _scanner.stop()

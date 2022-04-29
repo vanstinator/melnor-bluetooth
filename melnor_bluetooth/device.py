@@ -273,6 +273,11 @@ class Device:
         """Returns the number of valves on the device"""
         return self._valve_count
 
+    @valve_count.setter
+    def valve_count(self, value: int) -> None:
+        """Sets the number of valves on the device"""
+        self._valve_count = value
+
     @property
     def zone1(self) -> Valve:
         """Returns the first zone on the device"""

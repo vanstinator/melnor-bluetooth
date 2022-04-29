@@ -149,7 +149,7 @@ class Device:
         print("Disconnected from:", self._mac)
         self._is_connected = False
 
-    async def connect(self) -> None:
+    async def connect(self, timeout=60) -> None:
         if self._is_connected or self._connection_lock.locked():
             return
 
@@ -160,7 +160,7 @@ class Device:
                     self._mac, disconnected_callback=self.disconnected_callback
                 )
 
-                await self._connection.connect()
+                await self._connection.connect(timeout=timeout)
                 self._is_connected = True
 
                 await self._init()

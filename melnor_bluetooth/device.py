@@ -1,6 +1,4 @@
 import asyncio
-import os
-import platform
 import struct
 from typing import Any, List, Union
 
@@ -173,10 +171,6 @@ class Device:
 
     async def disconnect(self) -> None:
         await self._connection.disconnect()
-
-        # bluez tends to hang on to a device connection for too long
-        if platform.system() == "Linux":
-            os.system(f"bluetoothctl remove {self.mac}")
 
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""

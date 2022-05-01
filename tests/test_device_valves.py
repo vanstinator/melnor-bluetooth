@@ -55,7 +55,7 @@ def client_mock() -> Type:
     read_manufacturer.set_result(b"111110400")
     when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(read_manufacturer)
 
-    when(client_mock).connect().thenReturn(connect)
+    when(client_mock).connect(timeout=60).thenReturn(connect)
 
     return client_mock
 

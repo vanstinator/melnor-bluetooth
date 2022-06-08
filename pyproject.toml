@@ -74,4 +74,5 @@ format-jinja = """
 """
 
 [tool.pytest.ini_options]
-asyncio_mode = 'auto'
+asyncio_mode = 'strict'
+log_cli=1

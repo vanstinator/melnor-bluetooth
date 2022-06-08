@@ -1,15 +1,15 @@
 import asyncio
 import datetime
 import struct
-from typing import Type
+from typing import Dict
+from unittest.mock import AsyncMock
 from zoneinfo import ZoneInfo
 
 import freezegun
 import pytest
 from bleak import BleakClient
-from mockito import ANY, expect, mock, verify, when
+from pytest_mock import MockerFixture
 
-import melnor_bluetooth.device as device_module
 from melnor_bluetooth.constants import (
     BATTERY_UUID,
     MANUFACTURER_UUID,
@@ -40,24 +40,56 @@ zone_manual_setting_bytes = struct.pack(
 )
 
 
-@pytest.fixture
-def client_mock() -> Type:
-    connect = asyncio.Future()
-    connect.set_result(True)
+def _patch_bleak_client_read_gatt_char(
+    mocker: MockerFixture, param_map: Dict[str, bytes] = {}
+):
+    def fake_read_gatt_char(uuid: str):
+        return param_map.get(uuid)
 
-    client_mock = mock(spec=BleakClient)
-
-    when(device_module).BleakClient(TEST_UUID, disconnected_callback=ANY).thenReturn(
-        client_mock
+    mocker.patch(
+        "bleak.BleakClient.read_gatt_char",
+        side_effect=fake_read_gatt_char,
     )
 
-    read_manufacturer = asyncio.Future()
-    read_manufacturer.set_result(b"111110400")
-    when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(read_manufacturer)
 
-    when(client_mock).connect(timeout=60).thenReturn(connect)
+@pytest.fixture
+def connect_mock():
+    return AsyncMock(return_value=True)
 
-    return client_mock
+
+@pytest.fixture
+def client_mock(connect_mock, mocker: MockerFixture):
+    """Mock the BleakClient class"""
+
+    def _fake_client(read: Dict[str, bytes] = {}):
+        _patch_bleak_client_read_gatt_char(mocker, read)
+
+        mocker.patch("bleak.BleakClient.connect", side_effect=connect_mock)
+
+        mocker.patch("bleak.BleakClient", new=AsyncMock(spec=BleakClient))
+
+    return _fake_client
+
+
+# @pytest.fixture
+# def client_mock() -> Type:
+
+#     connect = asyncio.Future()
+#     connect.set_result(True)
+
+#     client_mock = mock(spec=BleakClient)
+
+#     when(device_module).BleakClient(TEST_UUID, disconnected_callback=ANY).thenReturn(
+#         client_mock
+#     )
+
+#     read_manufacturer = asyncio.Future()
+#     read_manufacturer.set_result(b"111110400")
+#     when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(read_manufacturer)
+
+#     when(client_mock).connect(timeout=60).thenReturn(connect)
+
+#     return client_mock
 
 
 class TestValveZone:
@@ -95,7 +127,10 @@ class TestValveZone:
 
 
 class TestDevice:
+    @pytest.mark.asyncio()
     async def test_properties(self, client_mock):
+
+        client_mock({MANUFACTURER_UUID: b"111110400"})
 
         device = Device(mac=TEST_UUID)
 
@@ -106,7 +141,10 @@ class TestDevice:
         assert device.mac == TEST_UUID
         assert device.valve_count == 4
 
+    @pytest.mark.asyncio()
     async def test_get_item(self, client_mock):
+        client_mock({MANUFACTURER_UUID: b"111110400"})
+
         device = Device(mac=TEST_UUID)
 
         await device.connect()
@@ -116,13 +154,10 @@ class TestDevice:
         assert device["zone3"] is device.zone3
         assert device["zone4"] is device.zone4
 
+    @pytest.mark.asyncio()
     async def test_1_valve_device(self, client_mock):
 
-        read_manufacturer = asyncio.Future()
-        read_manufacturer.set_result(b"111110100")
-        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-            read_manufacturer
-        )
+        client_mock({MANUFACTURER_UUID: b"111110100"})
 
         device = Device(mac=TEST_UUID)
 
@@ -133,16 +168,12 @@ class TestDevice:
         assert device.zone3 is None
         assert device.zone4 is None
 
+    @pytest.mark.asyncio()
     async def test_2_valve_device(self, client_mock):
 
+        client_mock(read={MANUFACTURER_UUID: b"111110200"})
+
         device = Device(mac=TEST_UUID)
-
-        read_manufacturer = asyncio.Future()
-        read_manufacturer.set_result(b"111110200")
-
-        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-            read_manufacturer
-        )
 
         await device.connect()
 
@@ -151,13 +182,10 @@ class TestDevice:
         assert device.zone3 is None
         assert device.zone4 is None
 
+    @pytest.mark.asyncio()
     async def test_1_valve_has_all_bytes(self, client_mock):
 
-        read_manufacturer = asyncio.Future()
-        read_manufacturer.set_result(b"111110100")
-        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-            read_manufacturer
-        )
+        client_mock(read={MANUFACTURER_UUID: b"111110100"})
 
         device = Device(mac=TEST_UUID)
 
@@ -176,13 +204,10 @@ class TestDevice:
             == b"\x01\x00\n\x00\n\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14"  # noqa: E501
         )
 
+    @pytest.mark.asyncio()
     async def test_1_valve_has_internal_valves(self, client_mock):
 
-        read_manufacturer = asyncio.Future()
-        read_manufacturer.set_result(b"111110100")
-        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-            read_manufacturer
-        )
+        client_mock(read={MANUFACTURER_UUID: b"111110100"})
 
         device = Device(mac=TEST_UUID)
 
@@ -200,130 +225,90 @@ class TestDevice:
         assert device._valves[2] is not None  # type:ignore
         assert device._valves[3] is not None  # type:ignore
 
-    async def test_device_connect_lock(self, client_mock):
-        with expect(BleakClient, times=1).connect():
-            device = Device(mac=TEST_UUID)
+    @pytest.mark.asyncio()
+    async def test_device_connect_lock(self, connect_mock, client_mock):
+        client_mock(read={MANUFACTURER_UUID: b"111110100"})
 
-            success = asyncio.Future()
+        device = Device(mac=TEST_UUID)
 
-            when(BleakClient).connect().thenReturn(success)
-            when(device_module).BleakClient(
-                TEST_UUID, disconnected_callback=ANY
-            ).thenReturn(client_mock)
+        # We'll verify we only call the bleak client connect once
+        loop = asyncio.get_event_loop()
+        one = loop.create_task(device.connect())
+        two = loop.create_task(device.connect())
+        three = loop.create_task(device.connect())
+        four = loop.create_task(device.connect())
 
-            read_manufacturer = asyncio.Future()
-            read_manufacturer.set_result(b"111110100")
-            when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-                read_manufacturer
-            )
+        # await the tasks to ensure they're done
+        await asyncio.gather(one, two, three, four)
 
-            # We'll verify we only call the bleak client connect once
-            loop = asyncio.get_event_loop()
-            one = loop.create_task(device.connect())
-            two = loop.create_task(device.connect())
-            three = loop.create_task(device.connect())
-            four = loop.create_task(device.connect())
+        assert connect_mock.mock_calls.__len__() == 1
 
-            success.set_result(True)
+    @pytest.mark.asyncio()
+    async def test_device_connect_noop_when_connected(self, mocker):
 
-            # await the tasks to ensure they're done
-            await asyncio.gather(one, two, three, four)
+        device = Device(mac=TEST_UUID)
 
-    async def test_device_connect_noop_when_connected(self, client_mock):
-        with expect(BleakClient, times=1).connect():
+        success = asyncio.Future()
+        success.set_result(True)
 
-            device = Device(mac=TEST_UUID)
+        bleak_mock = AsyncMock(spec=BleakClient)
+        mocker.patch("bleak.BleakClient.connect", return_value=success)
+        mocker.patch("bleak.BleakClient", new=AsyncMock(spec=bleak_mock))
 
-            success = asyncio.Future()
-            success.set_result(True)
-
-            when(BleakClient).connect().thenReturn(success)
-            when(device_module).BleakClient(
-                TEST_UUID, disconnected_callback=ANY
-            ).thenReturn(client_mock)
-
-            read_manufacturer = asyncio.Future()
-            read_manufacturer.set_result(b"111110100")
-            when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-                read_manufacturer
-            )
-
-            await device.connect()
-            await device.connect()
-            await device.connect()
-            await device.connect()
+        await device.connect()
+        await device.connect()
+        await device.connect()
+        await device.connect()
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
+    @pytest.mark.asyncio()
     async def test_fetch(self, client_mock):
         device = Device(mac=TEST_UUID)
 
-        read_battery = asyncio.Future()
-        read_battery.set_result(b"\x02\x85")
-
-        read_manufacturer = asyncio.Future()
-        read_manufacturer.set_result(b"111110400")
-
-        read_manual_settings = asyncio.Future()
-        read_manual_settings.set_result(
-            struct.pack(
-                ">?HH?HH?HH?HH",
-                # Valve 1
-                False,
-                0,
-                0,
-                # Valve 2
-                False,
-                0,
-                0,
-                # Valve 3
-                False,
-                0,
-                0,
-                # Valve 4
-                False,
-                0,
-                0,
-            )
-        )
-
-        read_manual_state = asyncio.Future()
-        read_manual_state.set_result(
-            struct.pack(
-                ">bIbIbIbI",
-                # Valve 1
-                1,
-                4294967295,
-                # Valve 2
-                1,
-                0,
-                # Valve 3
-                1,
-                0,
-                # Valve 4
-                1,
-                0,
-            )
-        )
-
-        when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(
-            read_manufacturer
-        )
-
-        when(client_mock).read_gatt_char(BATTERY_UUID).thenReturn(read_battery)
-
-        when(client_mock).read_gatt_char(VALVE_MANUAL_SETTINGS_UUID).thenReturn(
-            read_manual_settings
-        )
-
-        when(client_mock).read_gatt_char(VALVE_MANUAL_STATES_UUID).thenReturn(
-            read_manual_state
+        client_mock(
+            read={
+                BATTERY_UUID: b"\x02\x85",
+                MANUFACTURER_UUID: b"111110400",
+                VALVE_MANUAL_SETTINGS_UUID: struct.pack(
+                    ">?HH?HH?HH?HH",
+                    # Valve 1
+                    False,
+                    0,
+                    0,
+                    # Valve 2
+                    False,
+                    0,
+                    0,
+                    # Valve 3
+                    False,
+                    0,
+                    0,
+                    # Valve 4
+                    False,
+                    0,
+                    0,
+                ),
+                VALVE_MANUAL_STATES_UUID: struct.pack(
+                    ">bIbIbIbI",
+                    # Valve 1
+                    1,
+                    4294967295,
+                    # Valve 2
+                    1,
+                    0,
+                    # Valve 3
+                    1,
+                    0,
+                    # Valve 4
+                    1,
+                    0,
+                ),
+            }
         )
 
         await device.connect()
 
         await device.fetch_state()
-
-        verify(client_mock).read_gatt_char(VALVE_MANUAL_SETTINGS_UUID)
 
         assert device.battery_level == 30
         # assert device.brand == MELNOR

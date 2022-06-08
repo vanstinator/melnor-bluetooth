@@ -85,6 +85,7 @@ def scanner_mock() -> Type:
 
 
 class TestScanner:
+    @pytest.mark.asyncio()
     async def test_scanner_expected_device(self, scanner_mock):
         def cb(address: str):
             assert address is not None
@@ -109,6 +110,7 @@ class TestScanner:
 
         assert callback
 
+    @pytest.mark.asyncio()
     async def test_scanner_unexpected_device(self, scanner_mock):
         """Test that a device that is not recognized by the scanner is not added"""
 
@@ -133,6 +135,7 @@ class TestScanner:
 
         assert callback
 
+    @pytest.mark.asyncio()
     async def test_scanner_malformed_device(self, scanner_mock):
         def cb(address: str):
             assert address is not None

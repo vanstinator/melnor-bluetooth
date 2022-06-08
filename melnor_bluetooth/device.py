@@ -15,6 +15,16 @@ from .constants import (
     VALVE_MANUAL_STATES_UUID,
 )
 
+GLOBAL_BLUETOOTH_LOCK: asyncio.Lock = None  # type: ignore
+
+
+def global_bluetooth_lock():
+    """Initialize the global bluetooth lock inside the current event loop."""
+    global GLOBAL_BLUETOOTH_LOCK  # pylint: disable=global-statement
+    if GLOBAL_BLUETOOTH_LOCK is None:
+        GLOBAL_BLUETOOTH_LOCK = asyncio.Lock()
+    return GLOBAL_BLUETOOTH_LOCK
+
 
 class Valve:
 
@@ -24,6 +34,8 @@ class Valve:
     _manual_minutes: int
 
     def __init__(self, id: int, device) -> None:
+        global_bluetooth_lock()
+
         self._device = device
         self._id = id
         self._is_watering = False
@@ -122,6 +134,7 @@ class Device:
     _valve_count: int
 
     def __init__(self, mac: str) -> None:
+
         self._battery = 0
         self._is_connected = False
         self._mac = mac
@@ -148,60 +161,67 @@ class Device:
         self._is_connected = False
 
     async def connect(self, timeout=60) -> None:
-        if self._is_connected or self._connection_lock.locked():
-            return
+        async with GLOBAL_BLUETOOTH_LOCK:
 
-        async with self._connection_lock:
-            try:
-                print("Connecting to:", self._mac)
-                self._connection = BleakClient(
-                    self._mac, disconnected_callback=self.disconnected_callback
-                )
+            if self._is_connected or self._connection_lock.locked():
+                return
 
-                await self._connection.connect(timeout=timeout)
-                self._is_connected = True
+            async with self._connection_lock:
 
-                await self._init()
+                try:
+                    print("Connecting to:", self._mac)
+                    self._connection = BleakClient(
+                        self._mac, disconnected_callback=self.disconnected_callback
+                    )
 
-                print("Success:", self._mac)
+                    await self._connection.connect(timeout=timeout)
+                    self._is_connected = True
 
-            except BleakError:
-                print("Failed to connect to:", self._mac)
-                self._is_connected = False
+                    await self._init()
+
+                    print("Success:", self._mac)
+
+                except BleakError:
+                    print("Failed to connect to:", self._mac)
+                    self._is_connected = False
 
     async def disconnect(self) -> None:
-        await self._connection.disconnect()
+        async with GLOBAL_BLUETOOTH_LOCK:
+
+            await self._connection.disconnect()
 
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
 
-        uuids = [
-            BATTERY_UUID,
-            VALVE_MANUAL_SETTINGS_UUID,
-            VALVE_MANUAL_STATES_UUID,
-        ]
+        async with GLOBAL_BLUETOOTH_LOCK:
 
-        try:
-            bytes_array: List[bytes] = await asyncio.gather(
-                *[self._read(uuid) for uuid in uuids],
-                return_exceptions=True,
-            )
+            uuids = [
+                BATTERY_UUID,
+                VALVE_MANUAL_SETTINGS_UUID,
+                VALVE_MANUAL_STATES_UUID,
+            ]
 
-            for i, some_bytes in enumerate(bytes_array):
+            try:
+                bytes_array: List[bytes] = await asyncio.gather(
+                    *[self._read(uuid) for uuid in uuids],
+                    return_exceptions=True,
+                )
 
-                uuid = uuids[i]
+                for i, some_bytes in enumerate(bytes_array):
 
-                if uuid == BATTERY_UUID:
-                    self._battery = parse_battery_value(some_bytes)
+                    uuid = uuids[i]
 
-                for valve in self._valves:
-                    some_bytes = uuids.index(uuid)
-                    valve.update_state(bytes_array[some_bytes], uuids[i])
+                    if uuid == BATTERY_UUID:
+                        self._battery = parse_battery_value(some_bytes)
 
-        except BleakError as error:
-            # Swallow this error if the device is disconnected
-            if self._is_connected:
-                raise error
+                    for valve in self._valves:
+                        some_bytes = uuids.index(uuid)
+                        valve.update_state(bytes_array[some_bytes], uuids[i])
+
+            except BleakError as error:
+                # Swallow this error if the device is disconnected
+                if self._is_connected:
+                    raise error
 
     async def _read(self, uuid: str) -> bytes:
         """Reads the given characteristic from the device"""
@@ -210,27 +230,28 @@ class Device:
 
     async def push_state(self) -> None:
         """Pushes the state of the device to the device"""
+        async with GLOBAL_BLUETOOTH_LOCK:
 
-        on_off = self._connection.services.get_characteristic(
-            VALVE_MANUAL_SETTINGS_UUID
-        )
+            on_off = self._connection.services.get_characteristic(
+                VALVE_MANUAL_SETTINGS_UUID
+            )
 
-        await self._connection.write_gatt_char(
-            on_off.handle,
-            (
-                self._valves[0]._manual_setting_bytes()
-                + self._valves[1]._manual_setting_bytes()
-                + self._valves[2]._manual_setting_bytes()
-                + self._valves[3]._manual_setting_bytes()
-            ),
-            True,
-        )
+            await self._connection.write_gatt_char(
+                on_off.handle,
+                (
+                    self._valves[0]._manual_setting_bytes()
+                    + self._valves[1]._manual_setting_bytes()
+                    + self._valves[2]._manual_setting_bytes()
+                    + self._valves[3]._manual_setting_bytes()
+                ),
+                True,
+            )
 
-        updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
+            updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
 
-        await self._connection.write_gatt_char(
-            updated_at.handle, struct.pack(">I", get_timestamp()), True
-        )
+            await self._connection.write_gatt_char(
+                updated_at.handle, struct.pack(">I", get_timestamp()), True
+            )
 
     @property
     def battery_level(self) -> int:

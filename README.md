@@ -24,42 +24,42 @@ The python API has been designed to be as easy to use as possible. A few example
 
 #### Read battery state
 ```python
-  import asyncio
+import asyncio
 
-  from melnor_bluetooth.constants import BATTERY_UUID
-  from melnor_bluetooth.device import Device
+from melnor_bluetooth.constants import BATTERY_UUID
+from melnor_bluetooth.device import Device
 
-  address = '00:00:00:00:00' # fill with your device mac address
+address = '00:00:00:00:00' # fill with your device mac address
 
-  async main():
-    device = Device(address, 4)
-    await device.connect()
+async def main():
+  device = Device(address)
+  await device.connect()
 
-    print(device.battery_life);
+  print(device.battery_life);
 
-    await device.disconnect();
+  await device.disconnect();
 
-  asyncio.run(main())
-
+asyncio.run(main())
 ```
 
 #### Turn on a zone
 ```python
-  import asyncio
+import asyncio
 
-  from melnor_bluetooth.device import Device
+from melnor_bluetooth.device import Device
 
-  address = '00:00:00:00:00' # fill with your device mac address
+address = "00:00:00:00:00"  # fill with your device mac address
 
-  async main():
-    device = Device(address, 4)
+
+async def main():
+    device = Device(address)
     await device.connect()
 
-    device.zone1.is_watering = True;
+    device.zone1.is_watering = True
 
-    await device.push_state();
-    await device.disconnect();
+    await device.push_state()
+    await device.disconnect()
 
-  asyncio.run(main())
 
+asyncio.run(main())
 ```

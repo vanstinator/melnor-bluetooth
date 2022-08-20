@@ -42,7 +42,7 @@ profile = "black"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-bleak = "^0.14.2"
+bleak = "^0.15.1"
 tzdata = "^2022.1"
 tzlocal = "^4.1"
 aioconsole = "^0.4.1"

@@ -81,6 +81,10 @@ def scanner_mock() -> Type:
     stop.set_result(None)
     when(scanner_mock).stop().thenReturn(stop)
 
+    callback = asyncio.Future()
+    callback.set_result(None)
+    when(scanner_mock).register_detection_callback(ANY).thenReturn(callback)
+
     return scanner_mock
 
 

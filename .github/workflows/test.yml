@@ -53,5 +53,5 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           files: ./coverage.xml # optional
-          flags: Unit Tests # optional
+          flags: unit_tests # optional
           name: ${{ matrix.python-version }}_${{ matrix.os }} # optional

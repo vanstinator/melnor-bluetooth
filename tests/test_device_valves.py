@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 import freezegun
 import pytest
-from bleak import BleakClient
+from bleak import BleakClient  # type: ignore - this is a valid import
 from mockito import ANY, expect, mock, verify, when
 
 import melnor_bluetooth.device as device_module
@@ -62,7 +62,7 @@ def client_mock() -> Type:
 
 class TestValveZone:
     def test_zone_update_state(self, client_mock):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         device.zone1.update_state(zone_manual_setting_bytes, VALVE_MANUAL_SETTINGS_UUID)
 
@@ -70,14 +70,14 @@ class TestValveZone:
         assert device.zone1.manual_watering_minutes == 5
 
     def test_zone_properties(self, client_mock):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         device.zone1.is_watering = True
 
         assert device.zone1.manual_watering_minutes == 20
 
     def test_zone_defaults(self, client_mock):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         zone = Valve(0, device)
 
@@ -85,7 +85,7 @@ class TestValveZone:
         assert zone.manual_watering_minutes == 20
 
     def test_zone_byte_payload(self, client_mock):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
         zone = Valve(0, device)
 
         zone.is_watering = True
@@ -97,7 +97,7 @@ class TestValveZone:
 class TestDevice:
     async def test_properties(self, client_mock):
 
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         await device.connect()
 
@@ -107,7 +107,7 @@ class TestDevice:
         assert device.valve_count == 4
 
     async def test_get_item(self, client_mock):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         await device.connect()
 
@@ -124,7 +124,7 @@ class TestDevice:
             read_manufacturer
         )
 
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         await device.connect()
 
@@ -135,7 +135,7 @@ class TestDevice:
 
     async def test_2_valve_device(self, client_mock):
 
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         read_manufacturer = asyncio.Future()
         read_manufacturer.set_result(b"111110200")
@@ -159,7 +159,7 @@ class TestDevice:
             read_manufacturer
         )
 
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         await device.connect()
 
@@ -184,7 +184,7 @@ class TestDevice:
             read_manufacturer
         )
 
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         await device.connect()
 
@@ -202,7 +202,7 @@ class TestDevice:
 
     async def test_device_connect_lock(self, client_mock):
         with expect(BleakClient, times=1).connect():
-            device = Device(mac=TEST_UUID)
+            device = Device(address=TEST_UUID, ble_device=None)
 
             success = asyncio.Future()
 
@@ -232,7 +232,7 @@ class TestDevice:
     async def test_device_connect_noop_when_connected(self, client_mock):
         with expect(BleakClient, times=1).connect():
 
-            device = Device(mac=TEST_UUID)
+            device = Device(address=TEST_UUID, ble_device=None)
 
             success = asyncio.Future()
             success.set_result(True)
@@ -255,7 +255,7 @@ class TestDevice:
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
     async def test_fetch(self, client_mock):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         read_battery = asyncio.Future()
         read_battery.set_result(b"\x02\x85")
@@ -349,7 +349,7 @@ class TestDevice:
         assert device.zone4.watering_end_time == 0
 
     def test_str(self, snapshot):
-        device = Device(mac=TEST_UUID)
+        device = Device(address=TEST_UUID, ble_device=None)
 
         actual = device.__str__()
 

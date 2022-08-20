@@ -2,11 +2,11 @@ import asyncio
 import sys
 from typing import Callable
 
-from bleak import BleakScanner
+from bleak import BleakScanner  # type: ignore - this is a valid import
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-DeviceCallbackType = Callable[[str], None]
+DeviceCallbackType = Callable[[BLEDevice], None]
 
 lock = asyncio.Lock()
 
@@ -18,12 +18,12 @@ def _callback(
 ):
     if ble_advertisement_data.manufacturer_data.get(13) is not None:
 
-        #  we need to ignore the aadvertisement data for now
+        #  we need to ignore the advertisement data for now
         # https://github.com/vanstinator/melnor-bluetooth/issues/17
         # data = ble_advertisement_data.manufacturer_data[13]
         # model_number = f"{data[0]:02x}{data[1]:02x}"
 
-        callback(ble_device.address)
+        callback(ble_device)
 
 
 async def scanner(

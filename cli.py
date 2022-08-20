@@ -3,24 +3,22 @@ import sys
 from typing import List
 
 import aioconsole
+from bleak.backends.device import BLEDevice
 
 from melnor_bluetooth.device import Device
 from melnor_bluetooth.scanner import scanner
 
-address = "FDBC1347-8D0B-DB0E-8D79-7341E825AC2A"
-
 devices: List[Device] = []
 
 
-def detection_callback(address: str):
-    # if advertisement_data.local_name is not None:
-    #     if "YM Timer" in advertisement_data.local_name:
+def detection_callback(ble_device: BLEDevice):
+
+    address = ble_device.address
 
     has_device = [d for d in devices if d.mac == address]
 
     if len(has_device) == 0:
-        print(address)
-        device = Device(address)
+        device = Device(address, ble_device)
         devices.append(device)
         print(f"Found device: {device.__str__()}")
 

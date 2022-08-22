@@ -130,6 +130,7 @@ class Device:
     _ble_device: BLEDevice | None
     _brand: str
     _connection: BleakClient
+    _connection_lock = asyncio.Lock()
     _is_connected: bool
     _mac: str
     _model: str
@@ -168,33 +169,35 @@ class Device:
     async def connect(self, timeout=60) -> None:
         async with GLOBAL_BLUETOOTH_LOCK:
 
-            if self._is_connected:
+            if self._is_connected or self._connection_lock.locked():
                 return
 
-            try:
-                print("Connecting to:", self._mac)
+            async with self._connection_lock:
 
-                if self._ble_device is not None:
-                    self._connection = BleakClient(
-                        self._ble_device,
-                        disconnected_callback=self.disconnected_callback,
-                    )
-                else:
-                    self._connection = BleakClient(
-                        self._mac,
-                        disconnected_callback=self.disconnected_callback,
-                    )
+                try:
+                    print("Connecting to:", self._mac)
 
-                await self._connection.connect(timeout=timeout)
-                self._is_connected = True
+                    if self._ble_device is not None:
+                        self._connection = BleakClient(
+                            self._ble_device,
+                            disconnected_callback=self.disconnected_callback,
+                        )
+                    else:
+                        self._connection = BleakClient(
+                            self._mac,
+                            disconnected_callback=self.disconnected_callback,
+                        )
 
-                await self._init()
+                    await self._connection.connect(timeout=timeout)
+                    self._is_connected = True
 
-                print("Success:", self._mac)
+                    await self._init()
 
-            except BleakError:
-                print("Failed to connect to:", self._mac)
-                self._is_connected = False
+                    print("Success:", self._mac)
+
+                except BleakError:
+                    print("Failed to connect to:", self._mac)
+                    self._is_connected = False
 
     async def disconnect(self) -> None:
         async with GLOBAL_BLUETOOTH_LOCK:

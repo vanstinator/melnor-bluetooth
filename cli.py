@@ -18,7 +18,7 @@ def detection_callback(ble_device: BLEDevice):
     has_device = [d for d in devices if d.mac == address]
 
     if len(has_device) == 0:
-        device = Device(address, ble_device)
+        device = Device(ble_device)
         devices.append(device)
         print(f"Found device: {device.__str__()}")
 

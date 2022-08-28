@@ -4,9 +4,9 @@ import asyncio
 import struct
 from typing import Any, List, Union
 
-from bleak import BleakClient  # type: ignore - this is a valid import
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
+from bleak_retry_connector import BleakClient, establish_connection
 
 from melnor_bluetooth.parser.battery import parse_battery_value
 from melnor_bluetooth.parser.date import get_timestamp, time_shift
@@ -51,24 +51,23 @@ class Valve:
         offset = self._id * 5
 
         if uuid == VALVE_MANUAL_SETTINGS_UUID:
-            """Parses a 5 byte segment from the device and updates the state of the zone
-            [
-                0   - 0x00, # is_watering - boolean
-                1-2 - 0x00, # manual_watering_time - unsigned short
-                3-4 - 0x00, # duplicate of byte 1
-            ]
-            """
+            # Parses a 5 byte segment from the device and updates the state of the zone
+            # [
+            #     0   - 0x00, # is_watering - boolean
+            #     1-2 - 0x00, # manual_watering_time - unsigned short
+            #     3-4 - 0x00, # duplicate of byte 1
+            # ]
 
             self._is_watering = struct.unpack_from(">?", bytes, offset)[0]
             self._manual_minutes = struct.unpack_from(">H", bytes, offset + 1)[0]
 
         elif uuid == VALVE_MANUAL_STATES_UUID:
-            """byte segment for manual watering time left
-            [
-                0   - 0x00, # unclear, 0-2
-                1-4 - 0x00, # timestamp - unsigned int
-            ]
-            """
+            # byte segment for manual watering time left
+            # [
+            #     0   - 0x00, # unclear, 0-2
+            #     1-4 - 0x00, # timestamp - unsigned int
+            # ]
+
             parsed_time = self._end_time = struct.unpack_from(">I", bytes, offset + 1)[
                 0
             ]
@@ -127,23 +126,22 @@ class Valve:
 class Device:
 
     _battery: int
-    _ble_device: BLEDevice | None
+    _ble_device: BLEDevice
     _brand: str
     _connection: BleakClient
     _connection_lock = asyncio.Lock()
     _is_connected: bool
-    _mac: str
     _model: str
     _sensor: bool
     _valves: List[Valve]
     _valve_count: int
 
-    def __init__(self, address: str, ble_device: BLEDevice | None) -> None:
+    def __init__(self, ble_device: BLEDevice) -> None:
 
         self._battery = 0
         self._ble_device = ble_device
         self._is_connected = False
-        self._mac = address
+        self._mac = ble_device.address
         self._valves = []
 
         # The 1 and 2 valve devices still use 4 valve bytes
@@ -177,18 +175,14 @@ class Device:
                 try:
                     print("Connecting to:", self._mac)
 
-                    if self._ble_device is not None:
-                        self._connection = BleakClient(
-                            self._ble_device,
-                            disconnected_callback=self.disconnected_callback,
-                        )
-                    else:
-                        self._connection = BleakClient(
-                            self._mac,
-                            disconnected_callback=self.disconnected_callback,
-                        )
+                    self._connection = await establish_connection(
+                        client_class=BleakClient,
+                        device=self._ble_device,
+                        name=self._mac,
+                        disconnected_callback=self.disconnected_callback,
+                        max_attempts=4,
+                    )
 
-                    await self._connection.connect(timeout=timeout)
                     self._is_connected = True
 
                     await self._init()
@@ -200,12 +194,16 @@ class Device:
                     self._is_connected = False
 
     async def disconnect(self) -> None:
-        async with GLOBAL_BLUETOOTH_LOCK:
+        """Disconnects the device"""
 
+        async with GLOBAL_BLUETOOTH_LOCK:
             await self._connection.disconnect()
 
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
+
+        if not self._is_connected:
+            await self.connect()
 
         async with GLOBAL_BLUETOOTH_LOCK:
 
@@ -243,6 +241,10 @@ class Device:
 
     async def push_state(self) -> None:
         """Pushes the new state of the device to the device"""
+
+        if not self._is_connected:
+            await self.connect()
+
         async with GLOBAL_BLUETOOTH_LOCK:
 
             on_off = self._connection.services.get_characteristic(

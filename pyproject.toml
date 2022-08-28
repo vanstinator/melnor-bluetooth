@@ -46,6 +46,7 @@ bleak = "^0.15.1"
 tzdata = "^2022.1"
 tzlocal = "^4.1"
 aioconsole = "^0.4.1"
+bleak-retry-connector = "^1.11.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.0"

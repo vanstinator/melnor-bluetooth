@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import struct
-from typing import Any, List, Union
+from typing import Any, List
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
@@ -316,19 +316,19 @@ class Device:
         return self._valves[0]
 
     @property
-    def zone2(self) -> Union[Valve, None]:
+    def zone2(self) -> Valve | None:
         """Returns the second zone on the device"""
         if self._valve_count > 1:
             return self._valves[1]
 
     @property
-    def zone3(self) -> Union[Valve, None]:
+    def zone3(self) -> Valve | None:
         """Returns the third zone on the device"""
         if self._valve_count > 2:
             return self._valves[2]
 
     @property
-    def zone4(self) -> Union[Valve, None]:
+    def zone4(self) -> Valve | None:
         """Returns the fourth zone on the device"""
         if self._valve_count > 2:
             return self._valves[3]
@@ -343,7 +343,7 @@ class Device:
             str += f"{valve}\n"
         return f"{str}    )\n)"
 
-    def __getitem__(self, key: str) -> Union[Valve, None]:
+    def __getitem__(self, key: str) -> Valve | None:
         if key == "zone1":
             return self.zone1
         elif key == "zone2":

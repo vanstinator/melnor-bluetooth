@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import struct
 from typing import Any, List
 
@@ -21,6 +22,8 @@ from .constants import (
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 GLOBAL_BLUETOOTH_LOCK: asyncio.Lock = None  # type: ignore
 
@@ -169,7 +172,7 @@ class Device:
     def disconnected_callback(self, client):  # pylint: disable=unused-argument
         """Callback for when the device is disconnected"""
 
-        print("Disconnected from:", self._mac)
+        _LOGGER.warning("Disconnected from %s", self._mac)
         self._is_connected = False
 
     async def connect(self, retry_attempts=4) -> None:
@@ -183,7 +186,7 @@ class Device:
             async with self._connection_lock:
 
                 try:
-                    print("Connecting to:", self._mac)
+                    _LOGGER.debug("Connecting to %s", self._mac)
 
                     self._connection = await establish_connection(
                         client_class=BleakClient,
@@ -200,10 +203,10 @@ class Device:
                     # Callers simply need to connect and it'll be populated
                     await self._read_model()
 
-                    print("Success:", self._mac)
+                    _LOGGER.debug("Successfully connected to %s", self._mac)
 
                 except BleakError:
-                    print("Failed to connect to:", self._mac)
+                    _LOGGER.error("Failed to connect to %s", self._mac)
                     self._is_connected = False
 
     async def disconnect(self) -> None:

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 from typing import List
 
@@ -7,8 +8,15 @@ from bleak.backends.device import BLEDevice
 
 from melnor_bluetooth.device import Device
 from melnor_bluetooth.scanner import scanner
+from melnor_bluetooth.utils.formatter import CustomFormatter
+
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger().handlers[0].setFormatter(CustomFormatter())
+logging.getLogger("bleak").setLevel(logging.WARNING)
 
 devices: List[Device] = []
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def detection_callback(ble_device: BLEDevice):
@@ -20,15 +28,15 @@ def detection_callback(ble_device: BLEDevice):
     if len(has_device) == 0:
         device = Device(ble_device)
         devices.append(device)
-        print(f"Found device: {device.__str__()}")
+        _LOGGER.info("Found device %s", device.mac)
 
 
 async def main():
 
-    await scanner(detection_callback, scan_timeout_seconds=10)
+    await scanner(detection_callback, scan_timeout_seconds=20)
 
     if len(devices) == 0:
-        print("No devices found")
+        _LOGGER.warning("No devices found")
         return
 
     device = devices[0]
@@ -59,10 +67,10 @@ async def main():
 
             valve = device[f"zone{zone}"]
             if valve is None:
-                print(f"Zone {zone} not found")
+                _LOGGER.warning("Zone %s not found", zone)
                 continue
 
-            print(f"Setting zone {zone} to {state} for {minutes} minutes")
+            _LOGGER.info("Setting zone %s to %s for %s minutes", zone, state, minutes)
             if minutes is not None:
                 valve.manual_watering_minutes = int(minutes)
 
@@ -77,7 +85,7 @@ async def main():
             await device.disconnect()
             sys.exit(0)
         else:
-            print("Invalid input")
+            _LOGGER.error("Invalid command")
 
         await device.push_state()
         continue

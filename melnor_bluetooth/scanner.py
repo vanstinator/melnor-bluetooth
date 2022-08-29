@@ -1,12 +1,15 @@
 """ Cheap scanner implementation for discovering Melnor Bluetooth devices."""
 
 import asyncio
+import logging
 import sys
 from typing import Callable
 
 from bleak import BleakScanner  # type: ignore - this is a valid import
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
+
+_LOGGER = logging.getLogger(__name__)
 
 DeviceCallbackType = Callable[[BLEDevice], None]
 
@@ -25,6 +28,7 @@ def _callback(
         # data = ble_advertisement_data.manufacturer_data[13]
         # model_number = f"{data[0]:02x}{data[1]:02x}"
 
+        _LOGGER.debug("Found device %s: %s", ble_device.name, ble_device.address)
         callback(ble_device)
 
 
@@ -38,6 +42,8 @@ async def scanner(
     :param callback: Callback function.
     :param scan_timeout_seconds: Timeout in seconds. Default 60 seconds
     """
+
+    _LOGGER.debug("Scanning for devices")
 
     _scanner = BleakScanner()
 

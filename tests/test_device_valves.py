@@ -126,6 +126,7 @@ class TestDevice:
         assert device.model == "11111"
         assert device.mac == TEST_UUID
         assert device.valve_count == 4
+        assert device.rssi == ble_device_mock.rssi
 
     async def test_get_item(self, client_mock, ble_device_mock):
         device = Device(ble_device=ble_device_mock)

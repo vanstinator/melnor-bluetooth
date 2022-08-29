@@ -26,25 +26,35 @@ The python API has been designed to be as easy to use as possible. A few example
 ```python
 import asyncio
 
-from melnor_bluetooth.constants import BATTERY_UUID
+from bleak import BleakScanner  # type: ignore - bleak has bad export types
+
 from melnor_bluetooth.device import Device
 
-address = '00:00:00:00:00' # fill with your device mac address
+ADDRESS = "00:00:00:00:00"  # fill with your device mac address
+
 
 async def main():
-  device = Device(address)
-  await device.connect()
 
-  print(device.battery_life);
+    ble_device = await BleakScanner.find_device_by_address(ADDRESS)
+    if ble_device is not None:
+        device = Device(ble_device)
+        await device.connect()
+        await device.fetch_state()
 
-  await device.disconnect();
+        print(device.battery_level)
+
+        await device.disconnect()
+
 
 asyncio.run(main())
+
 ```
 
 #### Turn on a zone
 ```python
 import asyncio
+
+from bleak import BleakScanner  # type: ignore - bleak has bad export types
 
 from melnor_bluetooth.device import Device
 
@@ -52,13 +62,16 @@ address = "00:00:00:00:00"  # fill with your device mac address
 
 
 async def main():
-    device = Device(address)
-    await device.connect()
+    ble_device = await BleakScanner.find_device_by_address(ADDRESS)
+    if ble_device is not None:
+        device = Device(ble_device)
+        await device.connect()
+        await device.fetch_state()
 
-    device.zone1.is_watering = True
+        device.zone1.is_watering = True
 
-    await device.push_state()
-    await device.disconnect()
+        await device.push_state()
+        await device.disconnect()
 
 
 asyncio.run(main())

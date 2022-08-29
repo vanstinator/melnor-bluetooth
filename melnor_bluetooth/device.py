@@ -317,6 +317,11 @@ class Device:
         return f"{self._valve_count} Valve Timer"
 
     @property
+    def rssi(self) -> int:
+        """Returns the RSSI of the device"""
+        return self._ble_device.rssi
+
+    @property
     def valve_count(self) -> int:
         """Returns the number of valves on the device"""
         return self._valve_count

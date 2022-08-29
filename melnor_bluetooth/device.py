@@ -164,7 +164,7 @@ class Device:
         print("Disconnected from:", self._mac)
         self._is_connected = False
 
-    async def connect(self, timeout=60) -> None:
+    async def connect(self, retry_attempts=4) -> None:
         async with GLOBAL_BLUETOOTH_LOCK:
 
             if self._is_connected or self._connection_lock.locked():
@@ -180,7 +180,7 @@ class Device:
                         device=self._ble_device,
                         name=self._mac,
                         disconnected_callback=self.disconnected_callback,
-                        max_attempts=4,
+                        max_attempts=retry_attempts,
                     )
 
                     self._is_connected = True

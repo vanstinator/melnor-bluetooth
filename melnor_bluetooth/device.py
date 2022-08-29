@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import struct
-from typing import Any, List
+from enum import Enum, auto
+from typing import Any, Callable, List
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
@@ -123,8 +124,42 @@ class Valve:
         )
 
 
+class DeviceAttribute(Enum):
+    """Enum for the attributes of the device"""
+
+    BATTERY = auto()
+
+
+class DeviceAttributes:
+    """Class for reading read-only attributes of the device"""
+
+    _attribute: DeviceAttribute
+    _device: Any
+    _mapping: Callable[[bytes], Any]
+    _uuid: str
+    _value: Any
+
+    def __init__(
+        self,
+        attribute: DeviceAttribute,
+        device: Device,
+        mapping: Callable[[bytes], Any],
+        uuid: str,
+    ) -> None:
+        self._attribute = attribute
+        self._device = device
+        self._mapping = mapping
+        self._uuid = uuid
+
+    async def read(self):
+        """Reads the value of the attribute"""
+        val = await self._device._read(self._uuid)
+        self._value = self._mapping(val)
+
+
 class Device:
 
+    _attributes: List[DeviceAttributes]
     _battery: int
     _ble_device: BLEDevice
     _brand: str
@@ -138,6 +173,14 @@ class Device:
 
     def __init__(self, ble_device: BLEDevice) -> None:
 
+        self._attributes = [
+            DeviceAttributes(
+                DeviceAttribute.BATTERY,
+                self,
+                parse_battery_value,
+                BATTERY_UUID,
+            )
+        ]
         self._battery = 0
         self._ble_device = ble_device
         self._is_connected = False
@@ -255,6 +298,7 @@ class Device:
                 await self._connection.write_gatt_char(
                     on_off.handle,
                     (
+                        # pylint: disable=protected-access
                         self._valves[0]._manual_setting_bytes()
                         + self._valves[1]._manual_setting_bytes()
                         + self._valves[2]._manual_setting_bytes()

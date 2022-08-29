@@ -6,7 +6,8 @@ from zoneinfo import ZoneInfo
 
 import freezegun
 import pytest
-from bleak import BleakClient  # type: ignore - this is a valid import
+from bleak.backends.device import BLEDevice
+from bleak_retry_connector import BleakClient  # type: ignore - this is a valid import
 from mockito import ANY, expect, mock, verify, when
 
 import melnor_bluetooth.device as device_module
@@ -41,51 +42,71 @@ zone_manual_setting_bytes = struct.pack(
 
 
 @pytest.fixture
+def ble_device_mock() -> BLEDevice:
+    """Mocks a BLEDevice object"""
+
+    ble_device = mock(spec=BLEDevice)
+    ble_device.address = TEST_UUID
+    ble_device.details = {"name": "Test"}
+    ble_device.rssi = 6
+
+    ble_device.set_disconnected_callback = mock()
+
+    return ble_device
+
+
+@pytest.fixture
 def client_mock() -> Type:
+    """Mock a BleakClient"""
+
+    c_mock = mock(spec=BleakClient)
+
     connect = asyncio.Future()
-    connect.set_result(True)
+    connect.set_result(c_mock)
 
-    client_mock = mock(spec=BleakClient)
-
-    when(device_module).BleakClient(TEST_UUID, disconnected_callback=ANY).thenReturn(
-        client_mock
-    )
+    when(device_module).establish_connection(
+        client_class=ANY,
+        device=ANY,
+        name=ANY,
+        disconnected_callback=ANY,
+        max_attempts=ANY,
+    ).thenReturn(connect)
 
     read_manufacturer = asyncio.Future()
     read_manufacturer.set_result(b"111110400")
-    when(client_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(read_manufacturer)
+    when(c_mock).read_gatt_char(MANUFACTURER_UUID).thenReturn(read_manufacturer)
 
-    when(client_mock).connect(timeout=60).thenReturn(connect)
+    when(c_mock).connect(timeout=60).thenReturn(connect)
 
-    return client_mock
+    return c_mock
 
 
 class TestValveZone:
-    def test_zone_update_state(self, client_mock):
-        device = Device(address=TEST_UUID, ble_device=None)
+    def test_zone_update_state(self, client_mock, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
 
         device.zone1.update_state(zone_manual_setting_bytes, VALVE_MANUAL_SETTINGS_UUID)
 
         assert device.zone1.is_watering == True
         assert device.zone1.manual_watering_minutes == 5
 
-    def test_zone_properties(self, client_mock):
-        device = Device(address=TEST_UUID, ble_device=None)
+    def test_zone_properties(self, client_mock, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
 
         device.zone1.is_watering = True
 
         assert device.zone1.manual_watering_minutes == 20
 
-    def test_zone_defaults(self, client_mock):
-        device = Device(address=TEST_UUID, ble_device=None)
+    def test_zone_defaults(self, client_mock, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
 
         zone = Valve(0, device)
 
         assert zone.is_watering == False
         assert zone.manual_watering_minutes == 20
 
-    def test_zone_byte_payload(self, client_mock):
-        device = Device(address=TEST_UUID, ble_device=None)
+    def test_zone_byte_payload(self, client_mock, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
         zone = Valve(0, device)
 
         zone.is_watering = True
@@ -95,9 +116,9 @@ class TestValveZone:
 
 
 class TestDevice:
-    async def test_properties(self, client_mock):
+    async def test_properties(self, client_mock, ble_device_mock):
 
-        device = Device(address=TEST_UUID, ble_device=None)
+        device = Device(ble_device=ble_device_mock)
 
         await device.connect()
 
@@ -106,8 +127,8 @@ class TestDevice:
         assert device.mac == TEST_UUID
         assert device.valve_count == 4
 
-    async def test_get_item(self, client_mock):
-        device = Device(address=TEST_UUID, ble_device=None)
+    async def test_get_item(self, client_mock, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
 
         await device.connect()
 
@@ -116,7 +137,7 @@ class TestDevice:
         assert device["zone3"] is device.zone3
         assert device["zone4"] is device.zone4
 
-    async def test_1_valve_device(self, client_mock):
+    async def test_1_valve_device(self, client_mock, ble_device_mock):
 
         read_manufacturer = asyncio.Future()
         read_manufacturer.set_result(b"111110100")
@@ -124,7 +145,7 @@ class TestDevice:
             read_manufacturer
         )
 
-        device = Device(address=TEST_UUID, ble_device=None)
+        device = Device(ble_device=ble_device_mock)
 
         await device.connect()
 
@@ -133,9 +154,9 @@ class TestDevice:
         assert device.zone3 is None
         assert device.zone4 is None
 
-    async def test_2_valve_device(self, client_mock):
+    async def test_2_valve_device(self, client_mock, ble_device_mock):
 
-        device = Device(address=TEST_UUID, ble_device=None)
+        device = Device(ble_device=ble_device_mock)
 
         read_manufacturer = asyncio.Future()
         read_manufacturer.set_result(b"111110200")
@@ -151,7 +172,7 @@ class TestDevice:
         assert device.zone3 is None
         assert device.zone4 is None
 
-    async def test_1_valve_has_all_bytes(self, client_mock):
+    async def test_1_valve_has_all_bytes(self, client_mock, ble_device_mock):
 
         read_manufacturer = asyncio.Future()
         read_manufacturer.set_result(b"111110100")
@@ -159,7 +180,7 @@ class TestDevice:
             read_manufacturer
         )
 
-        device = Device(address=TEST_UUID, ble_device=None)
+        device = Device(ble_device=ble_device_mock)
 
         await device.connect()
 
@@ -176,7 +197,7 @@ class TestDevice:
             == b"\x01\x00\n\x00\n\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14\x00\x00\x14\x00\x14"  # noqa: E501
         )
 
-    async def test_1_valve_has_internal_valves(self, client_mock):
+    async def test_1_valve_has_internal_valves(self, client_mock, ble_device_mock):
 
         read_manufacturer = asyncio.Future()
         read_manufacturer.set_result(b"111110100")
@@ -184,7 +205,7 @@ class TestDevice:
             read_manufacturer
         )
 
-        device = Device(address=TEST_UUID, ble_device=None)
+        device = Device(ble_device=ble_device_mock)
 
         await device.connect()
 
@@ -200,16 +221,14 @@ class TestDevice:
         assert device._valves[2] is not None  # type:ignore
         assert device._valves[3] is not None  # type:ignore
 
-    async def test_device_connect_lock(self, client_mock):
+    async def test_device_connect_lock(self, client_mock, ble_device_mock):
         with expect(BleakClient, times=1).connect():
-            device = Device(address=TEST_UUID, ble_device=None)
+            device = Device(ble_device=ble_device_mock)
 
             success = asyncio.Future()
 
             when(BleakClient).connect().thenReturn(success)
-            when(device_module).BleakClient(
-                TEST_UUID, disconnected_callback=ANY
-            ).thenReturn(client_mock)
+            when(device_module).BleakClient(ble_device_mock).thenReturn(client_mock)
 
             read_manufacturer = asyncio.Future()
             read_manufacturer.set_result(b"111110100")
@@ -229,18 +248,18 @@ class TestDevice:
             # await the tasks to ensure they're done
             await asyncio.gather(one, two, three, four)
 
-    async def test_device_connect_noop_when_connected(self, client_mock):
+    async def test_device_connect_noop_when_connected(
+        self, client_mock, ble_device_mock
+    ):
         with expect(BleakClient, times=1).connect():
 
-            device = Device(address=TEST_UUID, ble_device=None)
+            device = Device(ble_device=ble_device_mock)
 
             success = asyncio.Future()
             success.set_result(True)
 
             when(BleakClient).connect().thenReturn(success)
-            when(device_module).BleakClient(
-                TEST_UUID, disconnected_callback=ANY
-            ).thenReturn(client_mock)
+            when(device_module).BleakClient(ble_device_mock).thenReturn(client_mock)
 
             read_manufacturer = asyncio.Future()
             read_manufacturer.set_result(b"111110100")
@@ -254,8 +273,8 @@ class TestDevice:
             await device.connect()
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
-    async def test_fetch(self, client_mock):
-        device = Device(address=TEST_UUID, ble_device=None)
+    async def test_fetch(self, client_mock, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
 
         read_battery = asyncio.Future()
         read_battery.set_result(b"\x02\x85")
@@ -348,8 +367,8 @@ class TestDevice:
         assert device.zone4.manual_watering_minutes == 0
         assert device.zone4.watering_end_time == 0
 
-    def test_str(self, snapshot):
-        device = Device(address=TEST_UUID, ble_device=None)
+    def test_str(self, snapshot, ble_device_mock):
+        device = Device(ble_device=ble_device_mock)
 
         actual = device.__str__()
 

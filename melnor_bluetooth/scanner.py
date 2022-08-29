@@ -1,3 +1,5 @@
+""" Cheap scanner implementation for discovering Melnor Bluetooth devices."""
+
 import asyncio
 import sys
 from typing import Callable

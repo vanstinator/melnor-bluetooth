@@ -1,3 +1,5 @@
+""" Device interactions for Melnor bluetooth devices. """
+
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +8,8 @@ from typing import Any, List
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
-from bleak_retry_connector import BleakClient, establish_connection
+from bleak_retry_connector import BleakClient  # type: ignore - this is a valid import
+from bleak_retry_connector import establish_connection
 
 from melnor_bluetooth.parser.battery import parse_battery_value
 from melnor_bluetooth.parser.date import get_timestamp, time_shift
@@ -31,22 +34,24 @@ def global_bluetooth_lock():
 
 
 class Valve:
+    """Wrapper class to handle interacting with individual valves on a Melnor timer"""
 
     _device: Any
     _id: int
     _is_watering: bool
     _manual_minutes: int
 
-    def __init__(self, id: int, device) -> None:
+    def __init__(self, identifier: int, device) -> None:
         global_bluetooth_lock()
 
         self._device = device
-        self._id = id
+        self._id = identifier
         self._is_watering = False
         self._manual_minutes = 20
         self._end_time = 0
 
-    def update_state(self, bytes: bytes, uuid: str) -> None:
+    def update_state(self, raw_bytes: bytes, uuid: str) -> None:
+        """Update the state of the valve from the raw bytes"""
 
         offset = self._id * 5
 
@@ -58,8 +63,8 @@ class Valve:
             #     3-4 - 0x00, # duplicate of byte 1
             # ]
 
-            self._is_watering = struct.unpack_from(">?", bytes, offset)[0]
-            self._manual_minutes = struct.unpack_from(">H", bytes, offset + 1)[0]
+            self._is_watering = struct.unpack_from(">?", raw_bytes, offset)[0]
+            self._manual_minutes = struct.unpack_from(">H", raw_bytes, offset + 1)[0]
 
         elif uuid == VALVE_MANUAL_STATES_UUID:
             # byte segment for manual watering time left
@@ -68,9 +73,9 @@ class Valve:
             #     1-4 - 0x00, # timestamp - unsigned int
             # ]
 
-            parsed_time = self._end_time = struct.unpack_from(">I", bytes, offset + 1)[
-                0
-            ]
+            parsed_time = self._end_time = struct.unpack_from(
+                ">I", raw_bytes, offset + 1
+            )[0]
 
             self._end_time = parsed_time - time_shift() if parsed_time != 0 else 0
 
@@ -124,6 +129,7 @@ class Valve:
 
 
 class Device:
+    """A wrapper class to interact with Melnor Bluetooth devices"""
 
     _battery: int
     _ble_device: BLEDevice
@@ -150,7 +156,7 @@ class Device:
         for i in range(4):
             self._valves.append(Valve(i, self))
 
-    async def _init(self):
+    async def _read_model(self):
         """Initializes the device"""
 
         manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
@@ -160,11 +166,15 @@ class Device:
         self._model = string[0:5]
         self._valve_count = int(string[6:7])
 
-    def disconnected_callback(self, client):
+    def disconnected_callback(self, client):  # pylint: disable=unused-argument
+        """Callback for when the device is disconnected"""
+
         print("Disconnected from:", self._mac)
         self._is_connected = False
 
     async def connect(self, retry_attempts=4) -> None:
+        """Connects to the device"""
+
         async with GLOBAL_BLUETOOTH_LOCK:
 
             if self._is_connected or self._connection_lock.locked():
@@ -185,7 +195,10 @@ class Device:
 
                     self._is_connected = True
 
-                    await self._init()
+                    # Bluez handles certain types of advertisements poorly
+                    # To work around the missing data we grab it here
+                    # Callers simply need to connect and it'll be populated
+                    await self._read_model()
 
                     print("Success:", self._mac)
 
@@ -223,6 +236,8 @@ class Device:
 
                     uuid = uuids[i]
 
+                    # This is a little awkward, but it's the only single
+                    # attribute we read regularly.
                     if uuid == BATTERY_UUID:
                         self._battery = parse_battery_value(some_bytes)
 
@@ -255,6 +270,7 @@ class Device:
                 await self._connection.write_gatt_char(
                     on_off.handle,
                     (
+                        # pylint: disable=protected-access
                         self._valves[0]._manual_setting_bytes()
                         + self._valves[1]._manual_setting_bytes()
                         + self._valves[2]._manual_setting_bytes()
@@ -338,10 +354,12 @@ class Device:
         self._ble_device = ble_device
 
     def __str__(self) -> str:
-        str = f"{self.__class__.__name__}(\n    battery={self._battery}\n    valves=(\n"
+        string = (
+            f"{self.__class__.__name__}(\n    battery={self._battery}\n    valves=(\n"
+        )
         for valve in self._valves:
-            str += f"{valve}\n"
-        return f"{str}    )\n)"
+            string += f"{valve}\n"
+        return f"{string}    )\n)"
 
     def __getitem__(self, key: str) -> Valve | None:
         if key == "zone1":

@@ -24,7 +24,7 @@ jobs:
         poetry-version: [1.1.13]
         os: [
           ubuntu-latest,
-          # macos-latest, TODO fix this bleak.exc.BleakError: Bleak requires the CoreBluetooth Framework
+          macos-latest,
           windows-latest
         ]
     runs-on: ${{ matrix.os }}
@@ -45,6 +45,9 @@ jobs:
 
       - name: Install Dependencies
         run: poetry install
+
+      - name: Install setuptools
+        run: poetry run pip3 install setuptools
 
       - name: Test
         run: poetry run pytest --cov=melnor_bluetooth --cov-report=xml:coverage.xml

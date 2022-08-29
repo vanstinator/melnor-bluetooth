@@ -203,7 +203,7 @@ class Device:
         """Updates the state of the device with the given bytes"""
 
         if not self._is_connected:
-            await self.connect()
+            await self.connect(retry_attempts=1)
 
         async with GLOBAL_BLUETOOTH_LOCK:
 
@@ -243,7 +243,7 @@ class Device:
         """Pushes the new state of the device to the device"""
 
         if not self._is_connected:
-            await self.connect()
+            await self.connect(retry_attempts=1)
 
         async with GLOBAL_BLUETOOTH_LOCK:
 

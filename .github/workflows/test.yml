@@ -46,6 +46,8 @@ jobs:
       - name: Install Dependencies
         run: poetry install
 
+        # We need this on macos or bleak throws errors about core bluetooth.
+        # really, we need better mocks. but that's whole thing on it's own
       - name: Install setuptools
         run: poetry run pip3 install setuptools
 

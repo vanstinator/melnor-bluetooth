@@ -25,16 +25,16 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: 1.2
+
       - uses: actions/setup-python@v4
         name: Install Python
         with:
           python-version: 3.9
           cache: poetry
-
-      - name: Install Poetry
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: 1.2
 
       - name: Install poetry-dynamic-versioning
         run: pip install poetry-dynamic-versioning

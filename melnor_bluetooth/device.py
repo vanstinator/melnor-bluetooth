@@ -83,9 +83,9 @@ class Valve:
             self._end_time = parsed_time - time_shift() if parsed_time != 0 else 0
 
     @property
-    def identifier(self) -> int:
-        """Returns the friendly valve id"""
-        return self._id + 1
+    def id(self) -> int:
+        """Returns the raw valve id"""
+        return self._id
 
     @property
     def is_watering(self) -> bool:

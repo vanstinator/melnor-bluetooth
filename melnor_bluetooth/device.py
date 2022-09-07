@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
-from typing import Any, List
+from functools import wraps
+from typing import Any, Callable, Coroutine, List, TypeVar
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
@@ -34,6 +35,23 @@ def global_bluetooth_lock():
     if GLOBAL_BLUETOOTH_LOCK is None:
         GLOBAL_BLUETOOTH_LOCK = asyncio.Lock()
     return GLOBAL_BLUETOOTH_LOCK
+
+
+RT = TypeVar("RT")
+
+
+def bluetooth_lock(
+    func: Callable[..., Coroutine[Any, Any, RT]]
+) -> Callable[..., Coroutine[Any, Any, RT]]:
+    """Decorator to lock bluetooth operations."""
+
+    @wraps(func)
+    async def wrapped(*args) -> RT:
+
+        async with GLOBAL_BLUETOOTH_LOCK:
+            return await func(*args)
+
+    return wrapped
 
 
 class Valve:
@@ -94,7 +112,7 @@ class Valve:
 
     @is_watering.setter
     def is_watering(self, value: bool) -> None:
-        """Sets the watering state of the zone"""
+        """Sets whether the zone is currently watering"""
         self._is_watering = value
 
     @property
@@ -104,13 +122,29 @@ class Valve:
 
     @manual_watering_minutes.setter
     def manual_watering_minutes(self, value: int) -> None:
-        """Set the number of seconds the zone should manually watering for"""
+        """Sets the number of seconds the zone has been manually watering for"""
         self._manual_minutes = value
 
     @property
     def watering_end_time(self) -> int:
         """Unix timestamp in seconds when watering will end"""
         return self._end_time
+
+    @watering_end_time.setter
+    def watering_end_time(self, value: int) -> None:
+        """Sets the unix timestamp in seconds when watering will end"""
+        self._end_time = value
+
+    @bluetooth_lock
+    async def async_update_prop(self, prop: property, value: Any) -> None:
+        """Grabs a global lock before updating the internal state of the valve and
+        subsequently pushing that said to the device"""
+
+        if prop.fset is None:
+            raise AttributeError(f"Can't set attribute {prop}")
+
+        prop.fset(self, value)
+        await self._device._unsafe_push_state()  # pylint: disable=protected-access
 
     def _manual_setting_bytes(self) -> bytes:
         """Returns the 5 byte payload to be written to the device"""
@@ -176,45 +210,43 @@ class Device:
         _LOGGER.warning("Disconnected from %s", self._mac)
         self._is_connected = False
 
+    @bluetooth_lock
     async def connect(self, retry_attempts=4) -> None:
         """Connects to the device"""
 
-        async with GLOBAL_BLUETOOTH_LOCK:
+        if self._is_connected or self._connection_lock.locked():
+            return
 
-            if self._is_connected or self._connection_lock.locked():
-                return
+        async with self._connection_lock:
 
-            async with self._connection_lock:
+            try:
+                _LOGGER.debug("Connecting to %s", self._mac)
 
-                try:
-                    _LOGGER.debug("Connecting to %s", self._mac)
+                self._connection = await establish_connection(
+                    client_class=BleakClient,
+                    device=self._ble_device,
+                    name=self._mac,
+                    disconnected_callback=self.disconnected_callback,
+                    max_attempts=retry_attempts,
+                )
 
-                    self._connection = await establish_connection(
-                        client_class=BleakClient,
-                        device=self._ble_device,
-                        name=self._mac,
-                        disconnected_callback=self.disconnected_callback,
-                        max_attempts=retry_attempts,
-                    )
+                self._is_connected = True
 
-                    self._is_connected = True
+                # Bluez handles certain types of advertisements poorly
+                # To work around the missing data we grab it here
+                # Callers simply need to connect and it'll be populated
+                await self._read_model()
 
-                    # Bluez handles certain types of advertisements poorly
-                    # To work around the missing data we grab it here
-                    # Callers simply need to connect and it'll be populated
-                    await self._read_model()
+                _LOGGER.debug("Successfully connected to %s", self._mac)
 
-                    _LOGGER.debug("Successfully connected to %s", self._mac)
+            except BleakError:
+                _LOGGER.error("Failed to connect to %s", self._mac)
+                self._is_connected = False
 
-                except BleakError:
-                    _LOGGER.error("Failed to connect to %s", self._mac)
-                    self._is_connected = False
-
+    @bluetooth_lock
     async def disconnect(self) -> None:
         """Disconnects the device"""
-
-        async with GLOBAL_BLUETOOTH_LOCK:
-            await self._connection.disconnect()
+        await self._connection.disconnect()
 
     async def fetch_state(self) -> None:
         """Updates the state of the device with the given bytes"""
@@ -258,37 +290,40 @@ class Device:
         """Reads the given characteristic from the device"""
         return await self._connection.read_gatt_char(uuid)
 
+    async def _unsafe_push_state(self) -> None:
+        """Pushes the new state of the device to the device. WARNING: This
+        function runs without an internal lock. Public callers should use `push_state`
+        instead"""
+
+        on_off = self._connection.services.get_characteristic(
+            VALVE_MANUAL_SETTINGS_UUID
+        )
+
+        if on_off is not None:
+            await self._connection.write_gatt_char(
+                on_off.handle,
+                (
+                    # pylint: disable=protected-access
+                    self._valves[0]._manual_setting_bytes()
+                    + self._valves[1]._manual_setting_bytes()
+                    + self._valves[2]._manual_setting_bytes()
+                    + self._valves[3]._manual_setting_bytes()
+                ),
+                True,
+            )
+
+        updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
+
+        if updated_at is not None:
+            await self._connection.write_gatt_char(
+                updated_at.handle, struct.pack(">I", get_timestamp()), True
+            )
+
     async def push_state(self) -> None:
         """Pushes the new state of the device to the device"""
 
-        if not self._is_connected:
-            await self.connect(retry_attempts=1)
-
         async with GLOBAL_BLUETOOTH_LOCK:
-
-            on_off = self._connection.services.get_characteristic(
-                VALVE_MANUAL_SETTINGS_UUID
-            )
-
-            if on_off is not None:
-                await self._connection.write_gatt_char(
-                    on_off.handle,
-                    (
-                        # pylint: disable=protected-access
-                        self._valves[0]._manual_setting_bytes()
-                        + self._valves[1]._manual_setting_bytes()
-                        + self._valves[2]._manual_setting_bytes()
-                        + self._valves[3]._manual_setting_bytes()
-                    ),
-                    True,
-                )
-
-            updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
-
-            if updated_at is not None:
-                await self._connection.write_gatt_char(
-                    updated_at.handle, struct.pack(">I", get_timestamp()), True
-                )
+            await self._unsafe_push_state()
 
     @property
     def battery_level(self) -> int:

@@ -136,9 +136,8 @@ class Valve:
         self._end_time = value
 
     @bluetooth_lock
-    async def async_update_prop(self, prop: property, value: Any) -> None:
-        """Grabs a global lock before updating the internal state of the valve and
-        subsequently pushing that said to the device"""
+    async def async_set_prop_and_update(self, prop: property, value: Any) -> None:
+        """Safely updates the property and pushes the new state to the device"""
 
         if prop.fset is None:
             raise AttributeError(f"Can't set attribute {prop}")
@@ -182,6 +181,8 @@ class Device:
 
     def __init__(self, ble_device: BLEDevice) -> None:
 
+        self.test = dir(Valve)
+        self.test
         self._battery = 0
         self._ble_device = ble_device
         self._is_connected = False

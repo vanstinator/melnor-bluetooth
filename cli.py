@@ -72,12 +72,17 @@ async def main():
 
             _LOGGER.info("Setting zone %s to %s for %s minutes", zone, state, minutes)
             if minutes is not None:
-                await valve.async_update_prop(Valve.manual_watering_minutes, int(1))
+                await valve.async_set_prop_and_update(
+                    Valve.manual_watering_minutes, int(1)
+                )
 
             if state is None:
-                await valve.async_update_prop(Valve.is_watering, not valve.is_watering)
+                await valve.async_set_prop_and_update(
+                    Valve.is_watering, not valve.is_watering
+                )
+
             else:
-                await valve.async_update_prop(Valve.is_watering, state == "on")
+                await valve.async_set_prop_and_update(Valve.is_watering, state == "on")
 
             await device.push_state()
 

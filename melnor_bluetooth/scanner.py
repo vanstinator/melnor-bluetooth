@@ -23,6 +23,9 @@ def _callback(
 ):
     if ble_advertisement_data.manufacturer_data.get(13) is not None:
 
+        if ble_device.address == "C52127E4-C39B-D0A0-22BD-5837BC84AB9C":
+            return
+
         #  we need to ignore the advertisement data for now
         # https://github.com/vanstinator/melnor-bluetooth/issues/17
         # data = ble_advertisement_data.manufacturer_data[13]

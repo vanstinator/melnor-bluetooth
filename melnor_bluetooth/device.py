@@ -46,10 +46,10 @@ def bluetooth_lock(
     """Decorator to lock bluetooth operations."""
 
     @wraps(func)
-    async def wrapped(*args) -> RT:
+    async def wrapped(*args, **kwargs) -> RT:
 
         async with GLOBAL_BLUETOOTH_LOCK:
-            return await func(*args)
+            return await func(*args, **kwargs)
 
     return wrapped
 
@@ -181,8 +181,6 @@ class Device:
 
     def __init__(self, ble_device: BLEDevice) -> None:
 
-        self.test = dir(Valve)
-        self.test
         self._battery = 0
         self._ble_device = ble_device
         self._is_connected = False

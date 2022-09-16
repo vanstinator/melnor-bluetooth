@@ -26,15 +26,7 @@ from .constants import (
 
 _LOGGER = logging.getLogger(__name__)
 
-GLOBAL_BLUETOOTH_LOCK: asyncio.Lock = None  # type: ignore
-
-
-def global_bluetooth_lock():
-    """Initialize the global bluetooth lock inside the current event loop."""
-    global GLOBAL_BLUETOOTH_LOCK  # pylint: disable=global-statement
-    if GLOBAL_BLUETOOTH_LOCK is None:
-        GLOBAL_BLUETOOTH_LOCK = asyncio.Lock()
-    return GLOBAL_BLUETOOTH_LOCK
+GLOBAL_BLUETOOTH_LOCK: asyncio.Lock = asyncio.Lock()  # type: ignore
 
 
 RT = TypeVar("RT")
@@ -63,7 +55,6 @@ class Valve:
     _manual_minutes: int
 
     def __init__(self, identifier: int, device) -> None:
-        global_bluetooth_lock()
 
         self._device = device
         self._id = identifier
@@ -110,40 +101,33 @@ class Valve:
         """Returns whether the zone is currently watering"""
         return self._is_watering == 1
 
-    @is_watering.setter
-    def is_watering(self, value: bool) -> None:
+    @bluetooth_lock
+    async def set_is_watering(self, value: bool) -> None:
         """Sets whether the zone is currently watering"""
         self._is_watering = value
+        await self._device._unsafe_push_state()
 
     @property
     def manual_watering_minutes(self) -> int:
         """Returns the number of seconds the zone has been manually watering for"""
         return self._manual_minutes
 
-    @manual_watering_minutes.setter
-    def manual_watering_minutes(self, value: int) -> None:
+    @bluetooth_lock
+    async def set_manual_watering_minutes(self, value: int) -> None:
         """Sets the number of seconds the zone has been manually watering for"""
         self._manual_minutes = value
+        await self._device._unsafe_push_state()
 
     @property
     def watering_end_time(self) -> int:
         """Unix timestamp in seconds when watering will end"""
         return self._end_time
 
-    @watering_end_time.setter
-    def watering_end_time(self, value: int) -> None:
+    @bluetooth_lock
+    async def set_watering_end_time(self, value: int) -> None:
         """Sets the unix timestamp in seconds when watering will end"""
         self._end_time = value
-
-    @bluetooth_lock
-    async def async_set_prop_and_update(self, prop: property, value: Any) -> None:
-        """Safely updates the property and pushes the new state to the device"""
-
-        if prop.fset is None:
-            raise AttributeError(f"Can't set attribute {prop}")
-
-        prop.fset(self, value)
-        await self._device._unsafe_push_state()  # pylint: disable=protected-access
+        await self._device._unsafe_push_state()
 
     def _manual_setting_bytes(self) -> bytes:
         """Returns the 5 byte payload to be written to the device"""
@@ -198,6 +182,8 @@ class Device:
 
         manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
 
+        _LOGGER.warning(manufacturer_data)
+
         string = manufacturer_data.decode("utf-8")
 
         self._model = string[0:5]
@@ -213,14 +199,20 @@ class Device:
     async def connect(self, retry_attempts=4) -> None:
         """Connects to the device"""
 
+        _LOGGER.warning("here1")
+
         if self._is_connected or self._connection_lock.locked():
             return
 
+        _LOGGER.warning("here2")
+
         async with self._connection_lock:
 
+            _LOGGER.warning("here3")
             try:
                 _LOGGER.debug("Connecting to %s", self._mac)
 
+                _LOGGER.warning("here4")
                 self._connection = await establish_connection(
                     client_class=BleakClient,
                     device=self._ble_device,
@@ -229,7 +221,13 @@ class Device:
                     max_attempts=retry_attempts,
                 )
 
+                _LOGGER.warning("here5")
+
                 self._is_connected = True
+
+                _LOGGER.warning("here6")
+
+                _LOGGER.warning(self._connection.read_gatt_char)
 
                 # Bluez handles certain types of advertisements poorly
                 # To work around the missing data we grab it here
@@ -297,6 +295,8 @@ class Device:
         on_off = self._connection.services.get_characteristic(
             VALVE_MANUAL_SETTINGS_UUID
         )
+
+        _LOGGER.warning(on_off)
 
         if on_off is not None:
             await self._connection.write_gatt_char(

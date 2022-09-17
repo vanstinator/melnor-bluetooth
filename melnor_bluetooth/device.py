@@ -209,6 +209,7 @@ class Device:
                     name=self._mac,
                     disconnected_callback=self.disconnected_callback,
                     max_attempts=retry_attempts,
+                    use_services_cache=True,
                 )
 
                 self._is_connected = True

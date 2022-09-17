@@ -117,12 +117,6 @@ def mocked_bleak_client(
     return bleak_client
 
 
-def patch_bleak_client():
-    return patch(
-        "melnor_bluetooth.device.BleakClient", return_value=mocked_bleak_client()
-    )
-
-
 def patch_establish_connection(bleak_client: BleakClient = mocked_bleak_client()):
     return patch(
         "melnor_bluetooth.device.establish_connection",

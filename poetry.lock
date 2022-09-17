@@ -269,6 +269,14 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "mockito"
+version = "1.4.0"
+description = "Spying framework"
+category = "dev"
+optional = false
+python-versions = ">=2.7"
+
+[[package]]
 name = "mypy-extensions"
 version = "0.4.3"
 description = "Experimental type system extensions for programs checked with the mypy typechecker."
@@ -489,6 +497,18 @@ pytest = ">=4.6"
 testing = ["virtualenv", "pytest-xdist", "six", "process-tests", "hunter", "fields"]
 
 [[package]]
+name = "pytest-mockito"
+version = "0.0.4"
+description = "Base fixtures for mockito"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+mockito = ">=1.0.6"
+pytest = ">=3"
+
+[[package]]
 name = "python-dateutil"
 version = "2.8.2"
 description = "Extensions to the standard Python datetime module"
@@ -655,6 +675,7 @@ isort = []
 jinja2 = []
 markupsafe = []
 mccabe = []
+mockito = []
 mypy-extensions = []
 nodeenv = []
 packaging = []
@@ -674,6 +695,7 @@ pyparsing = []
 pytest = []
 pytest-asyncio = []
 pytest-cov = []
+pytest-mockito = []
 python-dateutil = []
 pytz-deprecation-shim = []
 pyyaml = []

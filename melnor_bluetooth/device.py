@@ -180,8 +180,6 @@ class Device:
 
         manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
 
-        _LOGGER.warning(manufacturer_data)
-
         string = manufacturer_data.decode("utf-8")
 
         self._model = string[0:5]
@@ -197,20 +195,14 @@ class Device:
     async def connect(self, retry_attempts=4) -> None:
         """Connects to the device"""
 
-        _LOGGER.warning("here1")
-
         if self._is_connected or self._connection_lock.locked():
             return
 
-        _LOGGER.warning("here2")
-
         async with self._connection_lock:
 
-            _LOGGER.warning("here3")
             try:
                 _LOGGER.debug("Connecting to %s", self._mac)
 
-                _LOGGER.warning("here4")
                 self._connection = await establish_connection(
                     client_class=BleakClient,
                     device=self._ble_device,
@@ -219,13 +211,7 @@ class Device:
                     max_attempts=retry_attempts,
                 )
 
-                _LOGGER.warning("here5")
-
                 self._is_connected = True
-
-                _LOGGER.warning("here6")
-
-                _LOGGER.warning(self._connection.read_gatt_char)
 
                 # Bluez handles certain types of advertisements poorly
                 # To work around the missing data we grab it here
@@ -293,8 +279,6 @@ class Device:
         on_off = self._connection.services.get_characteristic(
             VALVE_MANUAL_SETTINGS_UUID
         )
-
-        _LOGGER.warning(on_off)
 
         if on_off is not None:
             await self._connection.write_gatt_char(

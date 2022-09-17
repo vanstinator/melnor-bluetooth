@@ -6,7 +6,7 @@ from typing import List
 import aioconsole
 from bleak.backends.device import BLEDevice
 
-from melnor_bluetooth.device import Device, Valve
+from melnor_bluetooth.device import Device
 from melnor_bluetooth.scanner import scanner
 from melnor_bluetooth.utils.formatter import CustomFormatter
 
@@ -72,17 +72,13 @@ async def main():
 
             _LOGGER.info("Setting zone %s to %s for %s minutes", zone, state, minutes)
             if minutes is not None:
-                await valve.async_set_prop_and_update(
-                    Valve.manual_watering_minutes, int(1)
-                )
+                await valve.set_manual_watering_minutes(int(1))
 
             if state is None:
-                await valve.async_set_prop_and_update(
-                    Valve.is_watering, not valve.is_watering
-                )
+                await valve.set_is_watering(not valve.is_watering)
 
             else:
-                await valve.async_set_prop_and_update(Valve.is_watering, state == "on")
+                await valve.set_is_watering(state == "on")
 
             await device.push_state()
 

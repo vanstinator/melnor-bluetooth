@@ -5,16 +5,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
-from functools import wraps
-from typing import Any, Callable, Coroutine, List, TypeVar
+from typing import List
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from bleak_retry_connector import BleakClient  # type: ignore - this is a valid import
 from bleak_retry_connector import establish_connection
-
-from melnor_bluetooth.parser.battery import parse_battery_value
-from melnor_bluetooth.parser.date import get_timestamp, time_shift
+from deprecated import deprecated
 
 from .constants import (
     BATTERY_UUID,
@@ -23,33 +20,17 @@ from .constants import (
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
 )
+from .parser.battery import parse_battery_value
+from .parser.date import get_timestamp, time_shift
+from .utils.lock import GLOBAL_BLUETOOTH_LOCK, bluetooth_lock
 
 _LOGGER = logging.getLogger(__name__)
-
-GLOBAL_BLUETOOTH_LOCK: asyncio.Lock = asyncio.Lock()  # type: ignore
-
-
-RT = TypeVar("RT")
-
-
-def bluetooth_lock(
-    func: Callable[..., Coroutine[Any, Any, RT]]
-) -> Callable[..., Coroutine[Any, Any, RT]]:
-    """Decorator to lock bluetooth operations."""
-
-    @wraps(func)
-    async def wrapped(*args, **kwargs) -> RT:
-
-        async with GLOBAL_BLUETOOTH_LOCK:
-            return await func(*args, **kwargs)
-
-    return wrapped
 
 
 class Valve:
     """Wrapper class to handle interacting with individual valves on a Melnor timer"""
 
-    _device: Any
+    _device: Device
     _id: int
     _is_watering: bool
     _manual_minutes: int
@@ -98,36 +79,53 @@ class Valve:
 
     @property
     def is_watering(self) -> bool:
-        """Returns whether the zone is currently watering"""
+        """Returns the zone watering state"""
         return self._is_watering == 1
+
+    @is_watering.setter
+    @deprecated(version="0.0.18", reason="Use set_is_watering instead")
+    def is_watering(self, value: bool) -> None:
+        """
+        @deprecated
+        Sets the zone watering state
+        This isn't necessarily safe on the event loop when used in
+        conjunction with `Device.push_state`
+        if other processes are calling `Device.fetch_state`"""
+        self._is_watering = value
 
     @bluetooth_lock
     async def set_is_watering(self, value: bool) -> None:
-        """Sets whether the zone is currently watering"""
+        """Atomically sets zone watering state"""
         self._is_watering = value
-        await self._device._unsafe_push_state()
+        await self._device._unsafe_push_state()  # pylint: disable=protected-access
 
     @property
     def manual_watering_minutes(self) -> int:
-        """Returns the number of seconds the zone has been manually watering for"""
+        """Returns the number of seconds the zone has been manually watering"""
         return self._manual_minutes
+
+    @manual_watering_minutes.setter
+    @deprecated(version="0.0.18", reason="Use set_manual_watering_minutes instead")
+    def manual_watering_minutes(self, value: int) -> None:
+        """
+        @deprecated
+        Sets the number of seconds the zone has been manually watering.
+        This isn't necessarily safe on the event loop when used in
+        conjunction with `Device.push_state`
+        if other processes are calling `Device.fetch_state`"""
+        self._manual_minutes = value
 
     @bluetooth_lock
     async def set_manual_watering_minutes(self, value: int) -> None:
-        """Sets the number of seconds the zone has been manually watering for"""
+        """Atomically set the number of seconds the valve should water."""
         self._manual_minutes = value
-        await self._device._unsafe_push_state()
+        await self._device._unsafe_push_state()  # pylint: disable=protected-access
 
     @property
     def watering_end_time(self) -> int:
-        """Unix timestamp in seconds when watering will end"""
+        """Read-only unix timestamp in seconds when watering will end. Pulled directly
+        from the device. To influence the value use `set_manual_watering_minutes`"""
         return self._end_time
-
-    @bluetooth_lock
-    async def set_watering_end_time(self, value: int) -> None:
-        """Sets the unix timestamp in seconds when watering will end"""
-        self._end_time = value
-        await self._device._unsafe_push_state()
 
     def _manual_setting_bytes(self) -> bytes:
         """Returns the 5 byte payload to be written to the device"""

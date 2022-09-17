@@ -136,10 +136,10 @@ class TestValveZone:
                 zone_manual_setting_bytes, VALVE_MANUAL_SETTINGS_UUID
             )
 
-            assert device.zone1.is_watering == True
+            assert device.zone1.is_watering is True
             assert device.zone1.manual_watering_minutes == 5
 
-    async def test_zone_properties(self, ble_device_mock):
+    async def test_atomic_zone_setters(self, ble_device_mock):
 
         with patch_establish_connection():
 
@@ -149,6 +149,18 @@ class TestValveZone:
             await device.zone1.set_is_watering(True)
 
             assert device.zone1.manual_watering_minutes == 20
+
+    async def test_zone_properties(self, ble_device_mock):
+
+        with patch_establish_connection():
+
+            device = Device(ble_device=ble_device_mock)
+            await device.connect()
+
+            device.zone1.is_watering = True
+            device.zone1.manual_watering_minutes = 10
+
+            assert device.zone1.manual_watering_minutes == 10
 
     async def test_zone_defaults(self, ble_device_mock):
         with patch_establish_connection():

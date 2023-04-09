@@ -31,12 +31,6 @@ def _time_offset(tz: datetime.tzinfo = get_localzone()):
         # TODO log or throw an exception here. caller should handle this
         return 0
 
-    if base_time.dst() is not None:
-        base_offset = base_offset - base_time.dst()  # type: ignore
-
-    if local_time.dst() is not None:
-        local_offset = local_offset - local_time.dst()  # type: ignore
-
     if base_offset is None or local_offset is None:
         # TODO log or throw an exception here. caller should handle this
         return 0

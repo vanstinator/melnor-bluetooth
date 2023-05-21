@@ -20,7 +20,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def detection_callback(ble_device: BLEDevice):
-
     address = ble_device.address
 
     has_device = [d for d in devices if d.mac == address]
@@ -32,7 +31,6 @@ def detection_callback(ble_device: BLEDevice):
 
 
 async def main():
-
     await scanner(detection_callback, scan_timeout_seconds=10)
 
     if len(devices) == 0:
@@ -44,7 +42,6 @@ async def main():
     await device.connect()
 
     while True:
-
         await device.fetch_state()
 
         # Take user input

@@ -17,11 +17,16 @@ from .constants import (
     BATTERY_UUID,
     MANUFACTURER_UUID,
     UPDATED_AT_UUID,
+    VALVE_0_MODE_UUID,
+    VALVE_1_MODE_UUID,
+    VALVE_2_MODE_UUID,
+    VALVE_3_MODE_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
 )
-from .parser.battery import parse_battery_value
-from .parser.date import get_timestamp, time_shift
+from .models.frequency import Frequency
+from .utils import date
+from .utils.battery import parse_battery_value
 from .utils.lock import GLOBAL_BLUETOOTH_LOCK, bluetooth_lock
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,13 +36,14 @@ class Valve:
     """Wrapper class to handle interacting with individual valves on a Melnor timer"""
 
     _device: Device
+    _frequency: Frequency | None
     _id: int
     _is_watering: bool
     _manual_minutes: int
 
     def __init__(self, identifier: int, device) -> None:
-
         self._device = device
+        self._frequency = None
         self._id = identifier
         self._is_watering = False
         self._manual_minutes = 20
@@ -70,7 +76,31 @@ class Valve:
                 ">I", raw_bytes, offset + 1
             )[0]
 
-            self._end_time = parsed_time - time_shift() if parsed_time != 0 else 0
+            self._end_time = parsed_time - date.time_shift() if parsed_time != 0 else 0
+
+        elif (
+            (self._id == 0 and uuid == VALVE_0_MODE_UUID)
+            or (self._id == 1 and uuid == VALVE_1_MODE_UUID)
+            or (self._id == 2 and uuid == VALVE_2_MODE_UUID)
+            or (self._id == 3 and uuid == VALVE_3_MODE_UUID)
+        ):
+            # byte segment for valve mode
+            # [
+            #     0   - 0x00, # unclear, always 0
+            #     1-4 - 0x00, # timestamp - unsigned int
+            #     5-6 - 0x00, # duration - unsigned short
+            #     7   - 0x00, # frequency - unsigned char
+            # ]
+
+            if self._frequency is None:
+                self._frequency = Frequency(raw_bytes)
+            else:
+                self._frequency.update_state(raw_bytes)
+
+    @property
+    def frequency_bytes(self) -> bytes | None:
+        """Returns the frequency bytes"""
+        return self._frequency.to_bytes()
 
     @property
     def id(self) -> int:
@@ -162,7 +192,6 @@ class Device:
     _valve_count: int
 
     def __init__(self, ble_device: BLEDevice) -> None:
-
         self._battery = 0
         self._ble_device = ble_device
         self._is_connected = False
@@ -199,7 +228,6 @@ class Device:
             return
 
         async with self._connection_lock:
-
             try:
                 _LOGGER.debug("Connecting to %s", self._mac)
 
@@ -237,11 +265,14 @@ class Device:
             await self.connect(retry_attempts=1)
 
         async with GLOBAL_BLUETOOTH_LOCK:
-
             uuids = [
                 BATTERY_UUID,
                 VALVE_MANUAL_SETTINGS_UUID,
                 VALVE_MANUAL_STATES_UUID,
+                VALVE_0_MODE_UUID,
+                VALVE_1_MODE_UUID,
+                VALVE_2_MODE_UUID,
+                VALVE_3_MODE_UUID,
             ]
 
             try:
@@ -251,7 +282,6 @@ class Device:
                 )
 
                 for i, some_bytes in enumerate(bytes_array):
-
                     uuid = uuids[i]
 
                     # This is a little awkward, but it's the only single
@@ -294,11 +324,37 @@ class Device:
                 True,
             )
 
+        zone_1_frequency_bytes = self._valves[0].frequency_bytes
+        if zone_1_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_0_MODE_UUID, zone_1_frequency_bytes, True
+            )
+
+        zone_2_frequency_bytes = self._valves[1].frequency_bytes
+        if zone_2_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_1_MODE_UUID, zone_2_frequency_bytes, True
+            )
+
+        zone_3_frequency_bytes = self._valves[2].frequency_bytes
+        if zone_3_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_2_MODE_UUID, zone_3_frequency_bytes, True
+            )
+
+        zone_4_frequency_bytes = self._valves[3].frequency_bytes
+        if zone_4_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_3_MODE_UUID, zone_4_frequency_bytes, True
+            )
+
         updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
 
         if updated_at is not None:
             await self._connection.write_gatt_char(
-                updated_at.handle, struct.pack(">I", get_timestamp()), True
+                updated_at.handle,
+                date.get_current_time_bytes(),
+                True,
             )
 
     async def push_state(self) -> None:

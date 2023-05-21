@@ -43,10 +43,10 @@ def _time_offset(tz: datetime.tzinfo = get_localzone()):
 
 
 def time_shift(tz: datetime.tzinfo = get_localzone()) -> int:
+    date = datetime.datetime(1970, 1, 1, tzinfo=tz).replace(fold=1)
+
     return int(
-        datetime.datetime.fromtimestamp(-_time_offset(tz) - 946656000, tz=tz)
-        .replace(fold=1)
-        .timestamp()
+        (date + datetime.timedelta(seconds=-_time_offset(tz) - 946656000)).timestamp()
     )
 
 

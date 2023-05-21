@@ -10,8 +10,8 @@ class Frequency:
     _payload: bytes
     _raw_start_time: int
 
-    _duration: int
-    _frequency_hours: int
+    _duration_minutes: int
+    _interval_hours: int
 
     # Computed values
     _next_run_time: datetime
@@ -24,14 +24,18 @@ class Frequency:
     def __str__(self) -> str:
         return (
             f"Next run time: {self.next_run_time} "
-            f"(Frequency: {self.frequency_hours} hours, Duration: {self.duration} minutes)"  # noqa: E501
+            f"(Frequency: {self._interval_hours} hours, Duration: {self.duration_minutes} minutes)"  # noqa: E501
             f"{' (Watering ends at ' + str(self._watering_end_time) + ')' if self._is_watering else ''}"  # noqa: E501
         )
 
     def to_bytes(self) -> bytes:
         """Convert the frequency to bytes for writing to the device"""
         return struct.pack(
-            ">BIHB", 0, self._raw_start_time, self.duration, self.frequency_hours
+            ">BIHB",
+            0,
+            self._raw_start_time,
+            self.duration_minutes,
+            self._interval_hours,
         )
 
     def _compute_dates(self):
@@ -50,16 +54,16 @@ class Frequency:
         next_run_time = start_time
         self._is_watering = False
         while next_run_time < datetime.now():
-            next_run_time += timedelta(hours=self.frequency_hours)
+            next_run_time += timedelta(hours=self._interval_hours)
             self._next_run_time = next_run_time
             if (
                 next_run_time
                 < datetime.now()
-                < next_run_time + timedelta(minutes=self.duration)
+                < next_run_time + timedelta(minutes=self.duration_minutes)
             ):
                 self._is_watering = True
                 self._watering_end_time = next_run_time + timedelta(
-                    minutes=self.duration
+                    minutes=self.duration_minutes
                 )
                 break
 
@@ -70,8 +74,8 @@ class Frequency:
         (
             _,
             self._raw_start_time,
-            self._duration,
-            self._frequency_hours,
+            self._duration_minutes,
+            self._interval_hours,
         ) = struct.unpack_from(">BIHB", self._payload)
 
         self._compute_dates()
@@ -83,23 +87,23 @@ class Frequency:
         return self._next_run_time
 
     @property
-    def duration(self) -> int:
+    def duration_minutes(self) -> int:
         """The duration of the watering in minutes"""
-        return self._duration
+        return self._duration_minutes
 
-    @duration.setter
-    def duration(self, value: int) -> None:
+    @duration_minutes.setter
+    def duration_minutes(self, value: int) -> None:
         # The Melnor app crashes if the duration is greater than 360 minutes
         value = min([value, 360])
-        self._duration = value
+        self._duration_minutes = value
 
     @property
-    def frequency_hours(self) -> int:
+    def interval_hours(self) -> int:
         """The frequency in hours"""
         return self._frequency_hours
 
-    @frequency_hours.setter
-    def frequency_hours(self, value: int) -> None:
+    @interval_hours.setter
+    def interval_hours(self, value: int) -> None:
         # The Melnor app crashes if the frequency is greater than 168 hours
         value = min([value, 168])
         self._frequency_hours = value

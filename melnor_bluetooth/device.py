@@ -100,7 +100,8 @@ class Valve:
     @property
     def frequency_bytes(self) -> bytes | None:
         """Returns the frequency bytes"""
-        return self._frequency.to_bytes()
+        if self._frequency is not None:
+            return self._frequency.to_bytes()
 
     @property
     def id(self) -> int:
@@ -150,6 +151,20 @@ class Valve:
         """Atomically set the number of seconds the valve should water."""
         self._manual_minutes = value
         await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_interval_hours(self, value: int) -> None:
+        """Atomically set the frequency interval hours"""
+        if self._frequency is not None:
+            self._frequency.interval_hours = value
+            await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_duration_minutes(self, value: int) -> None:
+        """Atomically set the frequency duration"""
+        if self._frequency is not None:
+            self._frequency.duration_minutes = value
+            await self._device._unsafe_push_state()
 
     @property
     def watering_end_time(self) -> int:

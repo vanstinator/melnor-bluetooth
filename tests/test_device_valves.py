@@ -15,6 +15,10 @@ from bleak_retry_connector import BleakClient  # type: ignore - this is a valid 
 from melnor_bluetooth.constants import (
     BATTERY_UUID,
     MANUFACTURER_UUID,
+    VALVE_0_MODE_UUID,
+    VALVE_1_MODE_UUID,
+    VALVE_2_MODE_UUID,
+    VALVE_3_MODE_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
 )
@@ -92,6 +96,7 @@ def mocked_bleak_client(
         1,
         0,
     ),
+    valve_frequency_bytes: bytes = struct.pack(">BIHB", 0, 333333, 10, 10),
 ):
     """Mock a BleakClient"""
 
@@ -113,6 +118,13 @@ def mocked_bleak_client(
             return b"\x02\x85"
         if args[0] == MANUFACTURER_UUID:
             return manufacturer_bytes
+        if (
+            args[0] == VALVE_0_MODE_UUID
+            or args[0] == VALVE_1_MODE_UUID
+            or args[0] == VALVE_2_MODE_UUID
+            or args[0] == VALVE_3_MODE_UUID
+        ):
+            return valve_frequency_bytes
 
     bleak_client.read_gatt_char = AsyncMock(side_effect=read_gatt_char_side_effect)
     bleak_client.write_gatt_char = AsyncMock()

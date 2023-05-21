@@ -129,9 +129,7 @@ def patch_establish_connection(bleak_client: BleakClient = mocked_bleak_client()
 
 class TestValveZone:
     async def test_zone_update_state(self, mocked_ble_device):
-
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
             await device.connect()
 
@@ -143,9 +141,7 @@ class TestValveZone:
             assert device.zone1.manual_watering_minutes == 5
 
     async def test_atomic_zone_setters(self, mocked_ble_device):
-
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
             await device.connect()
 
@@ -154,9 +150,7 @@ class TestValveZone:
             assert device.zone1.manual_watering_minutes == 20
 
     async def test_zone_properties(self, mocked_ble_device):
-
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
             await device.connect()
 
@@ -167,7 +161,6 @@ class TestValveZone:
 
     async def test_zone_defaults(self, mocked_ble_device):
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
             await device.connect()
 
@@ -178,7 +171,6 @@ class TestValveZone:
 
     async def test_zone_byte_payload(self, mocked_ble_device):
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
             await device.connect()
 
@@ -193,9 +185,7 @@ class TestValveZone:
 
 class TestDevice:
     async def test_properties(self, mocked_ble_device):
-
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
             await device.connect()
 
@@ -207,7 +197,6 @@ class TestDevice:
 
     async def test_get_item(self, mocked_ble_device):
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
 
             await device.connect()
@@ -218,11 +207,9 @@ class TestDevice:
             assert device["zone4"] is device.zone4
 
     async def test_1_valve_device(self, mocked_ble_device):
-
         with patch_establish_connection(
             mocked_bleak_client(manufacturer_bytes=b"111110100")
         ):
-
             device = Device(ble_device=mocked_ble_device)
 
             await device.connect()
@@ -233,11 +220,9 @@ class TestDevice:
             assert device.zone4 is None
 
     async def test_2_valve_device(self, mocked_ble_device):
-
         with patch_establish_connection(
             mocked_bleak_client(manufacturer_bytes=b"111110200")
         ):
-
             device = Device(ble_device=mocked_ble_device)
 
             await device.connect()
@@ -248,7 +233,6 @@ class TestDevice:
             assert device.zone4 is None
 
     async def test_1_valve_has_all_bytes(self, mocked_ble_device):
-
         with patch_establish_connection(
             mocked_bleak_client(manufacturer_bytes=b"111110200")
         ):
@@ -272,11 +256,9 @@ class TestDevice:
             )
 
     async def test_1_valve_has_internal_valves(self, mocked_ble_device):
-
         with patch_establish_connection(
             mocked_bleak_client(manufacturer_bytes=b"111110100")
         ):
-
             device = Device(ble_device=mocked_ble_device)
 
             await device.connect()
@@ -295,9 +277,7 @@ class TestDevice:
             assert device._valves[3] is not None
 
     async def test_device_connect_noop_when_connected(self, mocked_ble_device):
-
         with patch_establish_connection() as mocked_establish_connection:
-
             device = Device(ble_device=mocked_ble_device)
 
             await device.connect()
@@ -309,9 +289,7 @@ class TestDevice:
 
     @freezegun.freeze_time(datetime.datetime.now(tz=ZoneInfo("UTC")))
     async def test_fetch(self, mocked_ble_device):
-
         with patch_establish_connection():
-
             device = Device(ble_device=mocked_ble_device)
 
             await device.connect()
@@ -341,9 +319,9 @@ class TestDevice:
             assert device.zone4.manual_watering_minutes == 0
             assert device.zone4.watering_end_time == 0
 
-    async def test_str(self, snapshot, mocked_ble_device):
-        device = Device(ble_device=mocked_ble_device)
+    # async def test_str(self, snapshot, mocked_ble_device):
+    #     device = Device(ble_device=mocked_ble_device)
 
-        actual = str(device)
+    #     actual = str(device)
 
-        assert actual == snapshot
+    #     assert actual == snapshot

@@ -5,7 +5,8 @@
       "editor.codeActionsOnSave": {
           "source.organizeImports": true
       },
+      "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "python.analysis.typeCheckingMode": "basic",
-  "python.linting.flake8Enabled": true
+  "python.linting.flake8Enabled": true,
 }

@@ -148,7 +148,7 @@ optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.extras]
-docs = ["sphinxcontrib-fulltoc[docs] (>=1.2.0,<2.0.0)", "sphinxcontrib-asyncio[docs] (>=0.3.0,<0.4.0)", "sphinx-rtd-theme[docs] (>=1.0.0,<2.0.0)", "myst-parser[docs] (>=0.18.0,<0.19.0)", "Sphinx[docs] (>=5.1.1,<6.0.0)"]
+docs = ["Sphinx[docs] (>=5.1.1,<6.0.0)", "myst-parser[docs] (>=0.18.0,<0.19.0)", "sphinx-rtd-theme[docs] (>=1.0.0,<2.0.0)", "sphinxcontrib-asyncio[docs] (>=0.3.0,<0.4.0)", "sphinxcontrib-fulltoc[docs] (>=1.2.0,<2.0.0)"]
 
 [[package]]
 name = "deprecated"
@@ -349,8 +349,8 @@ optional = false
 python-versions = ">=3.6"
 
 [package.extras]
-testing = ["pytest-benchmark", "pytest"]
-dev = ["tox", "pre-commit"]
+dev = ["pre-commit", "tox"]
+testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "poetry-dynamic-versioning"
@@ -508,7 +508,7 @@ coverage = {version = ">=5.2.1", extras = ["toml"]}
 pytest = ">=4.6"
 
 [package.extras]
-testing = ["virtualenv", "pytest-xdist", "six", "process-tests", "hunter", "fields"]
+testing = ["fields", "hunter", "process-tests", "six", "pytest-xdist", "virtualenv"]
 
 [[package]]
 name = "pytest-mockito"
@@ -670,7 +670,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "d6ad7eeb93e6176ac2bd2ec08b647ace41d6fdba9a90a25d7dda51239feda53a"
+content-hash = "52e8685ad47116ec54cfc225f3af60f5746dffc8c0c275a43eb679079d631ea6"
 
 [metadata.files]
 aioconsole = []

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
+from datetime import datetime, time
 from typing import List
 
 from bleak.backends.device import BLEDevice
@@ -17,11 +18,17 @@ from .constants import (
     BATTERY_UUID,
     MANUFACTURER_UUID,
     UPDATED_AT_UUID,
+    VALVE_0_MODE_UUID,
+    VALVE_1_MODE_UUID,
+    VALVE_2_MODE_UUID,
+    VALVE_3_MODE_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
+    VALVE_ON_OFF_UUID,
 )
-from .parser.battery import parse_battery_value
-from .parser.date import get_timestamp, time_shift
+from .models.frequency import Frequency
+from .utils import date
+from .utils.battery import parse_battery_value
 from .utils.lock import GLOBAL_BLUETOOTH_LOCK, bluetooth_lock
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,15 +38,18 @@ class Valve:
     """Wrapper class to handle interacting with individual valves on a Melnor timer"""
 
     _device: Device
+    _frequency: Frequency
     _id: int
     _is_watering: bool
+    _is_frequency_schedule_enabled: bool
     _manual_minutes: int
 
     def __init__(self, identifier: int, device) -> None:
-
         self._device = device
+        self._frequency = Frequency()
         self._id = identifier
         self._is_watering = False
+        self._is_frequency_schedule_enabled = False
         self._manual_minutes = 20
         self._end_time = 0
 
@@ -70,7 +80,34 @@ class Valve:
                 ">I", raw_bytes, offset + 1
             )[0]
 
-            self._end_time = parsed_time - time_shift() if parsed_time != 0 else 0
+            self._end_time = parsed_time - date.time_shift() if parsed_time != 0 else 0
+
+        elif uuid == VALVE_ON_OFF_UUID:
+            self._is_frequency_schedule_enabled = struct.unpack_from(
+                ">?", raw_bytes, self._id
+            )[0]
+
+        elif (
+            (self._id == 0 and uuid == VALVE_0_MODE_UUID)
+            or (self._id == 1 and uuid == VALVE_1_MODE_UUID)
+            or (self._id == 2 and uuid == VALVE_2_MODE_UUID)
+            or (self._id == 3 and uuid == VALVE_3_MODE_UUID)
+        ):
+            # byte segment for valve mode
+            # [
+            #     0   - 0x00, # unclear, always 0
+            #     1-4 - 0x00, # timestamp - unsigned int
+            #     5-6 - 0x00, # duration - unsigned short
+            #     7   - 0x00, # frequency - unsigned char
+            # ]
+
+            self._frequency.update_state(raw_bytes)
+
+    @property
+    def frequency_bytes(self) -> bytes | None:
+        """Returns the frequency bytes"""
+        if self._frequency is not None:
+            return self._frequency.to_bytes()
 
     @property
     def id(self) -> int:
@@ -81,6 +118,24 @@ class Valve:
     def is_watering(self) -> bool:
         """Returns the zone watering state"""
         return self._is_watering == 1
+
+    @property
+    def schedule_enabled(self) -> bool:
+        """Returns the zone watering state"""
+        return self._is_frequency_schedule_enabled
+
+    @property
+    def frequency(self) -> Frequency:
+        """Returns the zone watering state"""
+        return self._frequency
+
+    @property
+    def next_cycle(self) -> datetime | None:
+        """Returns the next cycle time"""
+        if self.schedule_enabled:
+            return self._frequency.next_run_time
+
+        return None
 
     @is_watering.setter
     @deprecated(version="0.0.18", reason="Use set_is_watering instead")
@@ -119,6 +174,33 @@ class Valve:
     async def set_manual_watering_minutes(self, value: int) -> None:
         """Atomically set the number of seconds the valve should water."""
         self._manual_minutes = value
+        await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_interval_hours(self, value: int) -> None:
+        """Atomically set the frequency interval hours"""
+        if self._frequency is not None:
+            self._frequency.interval_hours = value
+            await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_duration_minutes(self, value: int) -> None:
+        """Atomically set the frequency duration"""
+        if self._frequency is not None:
+            self._frequency.duration_minutes = value
+            await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_start_time(self, value: time) -> None:
+        """Atomically set the frequency start time"""
+        if self._frequency is not None:
+            self._frequency.start_time = value
+            await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_enabled(self, value: bool) -> None:
+        """Atomically set the frequency enabled state"""
+        self._is_frequency_schedule_enabled = value
         await self._device._unsafe_push_state()  # pylint: disable=protected-access
 
     @property
@@ -162,7 +244,6 @@ class Device:
     _valve_count: int
 
     def __init__(self, ble_device: BLEDevice) -> None:
-
         self._battery = 0
         self._ble_device = ble_device
         self._is_connected = False
@@ -199,7 +280,6 @@ class Device:
             return
 
         async with self._connection_lock:
-
             try:
                 _LOGGER.debug("Connecting to %s", self._mac)
 
@@ -237,11 +317,15 @@ class Device:
             await self.connect(retry_attempts=1)
 
         async with GLOBAL_BLUETOOTH_LOCK:
-
             uuids = [
                 BATTERY_UUID,
                 VALVE_MANUAL_SETTINGS_UUID,
                 VALVE_MANUAL_STATES_UUID,
+                VALVE_ON_OFF_UUID,
+                VALVE_0_MODE_UUID,
+                VALVE_1_MODE_UUID,
+                VALVE_2_MODE_UUID,
+                VALVE_3_MODE_UUID,
             ]
 
             try:
@@ -251,7 +335,6 @@ class Device:
                 )
 
                 for i, some_bytes in enumerate(bytes_array):
-
                     uuid = uuids[i]
 
                     # This is a little awkward, but it's the only single
@@ -294,11 +377,50 @@ class Device:
                 True,
             )
 
+        await self._connection.write_gatt_char(
+            VALVE_ON_OFF_UUID,
+            struct.pack(
+                ">????",
+                # pylint: disable=protected-access
+                self._valves[0].schedule_enabled,
+                self._valves[1].schedule_enabled,
+                self._valves[2].schedule_enabled,
+                self._valves[3].schedule_enabled,
+            ),
+            True,
+        )
+
+        zone_1_frequency_bytes = self._valves[0].frequency_bytes
+        if zone_1_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_0_MODE_UUID, zone_1_frequency_bytes, True
+            )
+
+        zone_2_frequency_bytes = self._valves[1].frequency_bytes
+        if zone_2_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_1_MODE_UUID, zone_2_frequency_bytes, True
+            )
+
+        zone_3_frequency_bytes = self._valves[2].frequency_bytes
+        if zone_3_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_2_MODE_UUID, zone_3_frequency_bytes, True
+            )
+
+        zone_4_frequency_bytes = self._valves[3].frequency_bytes
+        if zone_4_frequency_bytes is not None:
+            await self._connection.write_gatt_char(
+                VALVE_3_MODE_UUID, zone_4_frequency_bytes, True
+            )
+
         updated_at = self._connection.services.get_characteristic(UPDATED_AT_UUID)
 
         if updated_at is not None:
             await self._connection.write_gatt_char(
-                updated_at.handle, struct.pack(">I", get_timestamp()), True
+                updated_at.handle,
+                date.get_current_time_bytes(),
+                True,
             )
 
     async def push_state(self) -> None:

@@ -1,7 +1,11 @@
 import datetime
+import logging
+import struct
 import zoneinfo
 
 from tzlocal import get_localzone
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _time_offset(tz: datetime.tzinfo = get_localzone()):
@@ -39,7 +43,11 @@ def _time_offset(tz: datetime.tzinfo = get_localzone()):
 
 
 def time_shift(tz: datetime.tzinfo = get_localzone()) -> int:
-    return -_time_offset(tz) - 946656000
+    date = datetime.datetime(1970, 1, 1, tzinfo=tz).replace(fold=1)
+
+    return int(
+        (date + datetime.timedelta(seconds=-_time_offset(tz) - 946656000)).timestamp()
+    )
 
 
 def get_timestamp(tz: datetime.tzinfo = get_localzone()) -> int:
@@ -48,3 +56,19 @@ def get_timestamp(tz: datetime.tzinfo = get_localzone()) -> int:
     """
 
     return int(datetime.datetime.now(tz).timestamp() + time_shift(tz))
+
+
+def get_current_time(tz: datetime.tzinfo = get_localzone()) -> datetime.datetime:
+    """
+    Returns the current date.
+    """
+
+    return datetime.datetime.fromtimestamp(get_timestamp(tz))
+
+
+def get_current_time_bytes(tz: datetime.tzinfo = get_localzone()) -> bytes:
+    """
+    Returns the current timestamp as a byte array.
+    """
+
+    return struct.pack(">I", get_timestamp(tz))

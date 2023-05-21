@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
+from datetime import time
 from typing import List
 
 from bleak.backends.device import BLEDevice
@@ -23,6 +24,7 @@ from .constants import (
     VALVE_3_MODE_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
+    VALVE_ON_OFF_UUID,
 )
 from .models.frequency import Frequency
 from .utils import date
@@ -36,16 +38,18 @@ class Valve:
     """Wrapper class to handle interacting with individual valves on a Melnor timer"""
 
     _device: Device
-    _frequency: Frequency | None
+    _frequency: Frequency
     _id: int
     _is_watering: bool
+    _is_frequency_schedule_enabled: bool
     _manual_minutes: int
 
     def __init__(self, identifier: int, device) -> None:
         self._device = device
-        self._frequency = None
+        self._frequency = Frequency()
         self._id = identifier
         self._is_watering = False
+        self._is_frequency_schedule_enabled = False
         self._manual_minutes = 20
         self._end_time = 0
 
@@ -78,6 +82,11 @@ class Valve:
 
             self._end_time = parsed_time - date.time_shift() if parsed_time != 0 else 0
 
+        elif uuid == VALVE_ON_OFF_UUID:
+            self._is_frequency_schedule_enabled = struct.unpack_from(
+                ">?", raw_bytes, self._id
+            )[0]
+
         elif (
             (self._id == 0 and uuid == VALVE_0_MODE_UUID)
             or (self._id == 1 and uuid == VALVE_1_MODE_UUID)
@@ -92,10 +101,7 @@ class Valve:
             #     7   - 0x00, # frequency - unsigned char
             # ]
 
-            if self._frequency is None:
-                self._frequency = Frequency(raw_bytes)
-            else:
-                self._frequency.update_state(raw_bytes)
+            self._frequency.update_state(raw_bytes)
 
     @property
     def frequency_bytes(self) -> bytes | None:
@@ -112,6 +118,16 @@ class Valve:
     def is_watering(self) -> bool:
         """Returns the zone watering state"""
         return self._is_watering == 1
+
+    @property
+    def scheduled_enabled(self) -> bool:
+        """Returns the zone watering state"""
+        return self._is_frequency_schedule_enabled
+
+    @property
+    def frequency(self) -> Frequency:
+        """Returns the zone watering state"""
+        return self._frequency
 
     @is_watering.setter
     @deprecated(version="0.0.18", reason="Use set_is_watering instead")
@@ -164,7 +180,20 @@ class Valve:
         """Atomically set the frequency duration"""
         if self._frequency is not None:
             self._frequency.duration_minutes = value
-            await self._device._unsafe_push_state()
+            await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_start_time(self, value: time) -> None:
+        """Atomically set the frequency start time"""
+        if self._frequency is not None:
+            self._frequency.start_time = value
+            await self._device._unsafe_push_state()  # pylint: disable=protected-access
+
+    @bluetooth_lock
+    async def set_frequency_enabled(self, value: bool) -> None:
+        """Atomically set the frequency enabled state"""
+        self._is_frequency_schedule_enabled = value
+        await self._device._unsafe_push_state()  # pylint: disable=protected-access
 
     @property
     def watering_end_time(self) -> int:
@@ -284,6 +313,7 @@ class Device:
                 BATTERY_UUID,
                 VALVE_MANUAL_SETTINGS_UUID,
                 VALVE_MANUAL_STATES_UUID,
+                VALVE_ON_OFF_UUID,
                 VALVE_0_MODE_UUID,
                 VALVE_1_MODE_UUID,
                 VALVE_2_MODE_UUID,
@@ -338,6 +368,19 @@ class Device:
                 ),
                 True,
             )
+
+        await self._connection.write_gatt_char(
+            VALVE_ON_OFF_UUID,
+            struct.pack(
+                ">????",
+                # pylint: disable=protected-access
+                self._valves[0].scheduled_enabled,
+                self._valves[1].scheduled_enabled,
+                self._valves[2].scheduled_enabled,
+                self._valves[3].scheduled_enabled,
+            ),
+            True,
+        )
 
         zone_1_frequency_bytes = self._valves[0].frequency_bytes
         if zone_1_frequency_bytes is not None:

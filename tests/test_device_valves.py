@@ -21,6 +21,7 @@ from melnor_bluetooth.constants import (
     VALVE_3_MODE_UUID,
     VALVE_MANUAL_SETTINGS_UUID,
     VALVE_MANUAL_STATES_UUID,
+    VALVE_ON_OFF_UUID,
 )
 from melnor_bluetooth.device import Device, Valve
 from tests.constants import TEST_UUID
@@ -97,6 +98,7 @@ def mocked_bleak_client(
         0,
     ),
     valve_frequency_bytes: bytes = struct.pack(">BIHB", 0, 333333, 10, 10),
+    valve_on_off_bytes: bytes = struct.pack(">BBBB", 0, 0, 0, 0),
 ):
     """Mock a BleakClient"""
 
@@ -125,6 +127,8 @@ def mocked_bleak_client(
             or args[0] == VALVE_3_MODE_UUID
         ):
             return valve_frequency_bytes
+        if args[0] == VALVE_ON_OFF_UUID:
+            return valve_on_off_bytes
 
     bleak_client.read_gatt_char = AsyncMock(side_effect=read_gatt_char_side_effect)
     bleak_client.write_gatt_char = AsyncMock()

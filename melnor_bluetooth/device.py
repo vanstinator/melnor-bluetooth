@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
-from datetime import time
+from datetime import datetime, time
 from typing import List
 
 from bleak.backends.device import BLEDevice
@@ -120,7 +120,7 @@ class Valve:
         return self._is_watering == 1
 
     @property
-    def scheduled_enabled(self) -> bool:
+    def schedule_enabled(self) -> bool:
         """Returns the zone watering state"""
         return self._is_frequency_schedule_enabled
 
@@ -128,6 +128,14 @@ class Valve:
     def frequency(self) -> Frequency:
         """Returns the zone watering state"""
         return self._frequency
+
+    @property
+    def next_cycle(self) -> datetime | None:
+        """Returns the next cycle time"""
+        if self.schedule_enabled:
+            return self._frequency.next_run_time
+
+        return None
 
     @is_watering.setter
     @deprecated(version="0.0.18", reason="Use set_is_watering instead")
@@ -374,10 +382,10 @@ class Device:
             struct.pack(
                 ">????",
                 # pylint: disable=protected-access
-                self._valves[0].scheduled_enabled,
-                self._valves[1].scheduled_enabled,
-                self._valves[2].scheduled_enabled,
-                self._valves[3].scheduled_enabled,
+                self._valves[0].schedule_enabled,
+                self._valves[1].schedule_enabled,
+                self._valves[2].schedule_enabled,
+                self._valves[3].schedule_enabled,
             ),
             True,
         )

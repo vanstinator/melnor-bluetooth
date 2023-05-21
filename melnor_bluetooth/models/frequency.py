@@ -16,7 +16,7 @@ class Frequency:
     _attr_interval_hours: int
 
     # Computed values
-    _attr_next_run_time: datetime
+    _attr_next_run_time: datetime | None
     _attr_is_watering: bool
     _attr_schedule_end: datetime
 
@@ -27,6 +27,7 @@ class Frequency:
             datetime.now().replace(tzinfo=get_localzone()).timestamp()
             + date.time_shift()
         )
+        self._attr_next_run_time = None
 
     def __str__(self) -> str:
         return (
@@ -64,21 +65,19 @@ class Frequency:
 
         now = datetime.now().replace(tzinfo=get_localzone())
         while self._attr_next_run_time < now:
-            temp_attr_next_run_time = self._attr_next_run_time + timedelta(
-                hours=self._attr_interval_hours
-            )
             if (
                 self._attr_next_run_time
                 < now
-                < temp_attr_next_run_time + timedelta(minutes=self.duration_minutes)
+                < self._attr_next_run_time + timedelta(minutes=self.duration_minutes)
             ):
                 self._attr_is_watering = True
                 self._attr_schedule_end = self._attr_next_run_time + timedelta(
                     minutes=self._attr_duration_minutes
                 )
+
                 break
 
-            self._attr_next_run_time = temp_attr_next_run_time
+            self._attr_next_run_time += timedelta(hours=self._attr_interval_hours)
 
     def update_state(self, payload: bytes):
         """Update the state of the frequency from the payload"""
@@ -149,7 +148,7 @@ class Frequency:
         return self._attr_is_watering
 
     @property
-    def next_run_time(self) -> datetime:
+    def next_run_time(self) -> datetime | None:
         """The next time the valve will run. Only the hour and minute are used.
         The date is always wrong."""
         return self._attr_next_run_time

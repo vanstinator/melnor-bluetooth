@@ -319,9 +319,9 @@ class TestDevice:
             assert device.zone4.manual_watering_minutes == 0
             assert device.zone4.watering_end_time == 0
 
-    # async def test_str(self, snapshot, mocked_ble_device):
-    #     device = Device(ble_device=mocked_ble_device)
+    async def test_str(self, snapshot, mocked_ble_device):
+        device = Device(ble_device=mocked_ble_device)
 
-    #     actual = str(device)
+        actual = str(device)
 
-    #     assert actual == snapshot
+        assert actual == snapshot

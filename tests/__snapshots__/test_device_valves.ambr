@@ -1,5 +1,6 @@
+# serializer version: 1
 # name: TestDevice.test_str
-  '
+  '''
   Device(
       battery=0
       valves=(
@@ -9,5 +10,5 @@
         Valve(id=3|is_watering=False|manual_minutes=20|seconds_left=0)
       )
   )
-  '
----
+  '''
+# ---

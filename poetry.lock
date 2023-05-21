@@ -410,6 +410,16 @@ files = [
 ]
 
 [[package]]
+name = "colored"
+version = "1.4.2"
+description = "Simple library for color and formatting to terminal"
+optional = false
+python-versions = "*"
+files = [
+    {file = "colored-1.4.2.tar.gz", hash = "sha256:056fac09d9e39b34296e7618897ed1b8c274f98423770c2980d829fd670955ed"},
+]
+
+[[package]]
 name = "coverage"
 version = "7.2.5"
 description = "Code coverage measurement for Python"
@@ -1294,6 +1304,21 @@ files = [
 ]
 
 [[package]]
+name = "syrupy"
+version = "4.0.2"
+description = "Pytest Snapshot Test Utility"
+optional = false
+python-versions = ">=3.8.1,<4"
+files = [
+    {file = "syrupy-4.0.2-py3-none-any.whl", hash = "sha256:dfd1f0fad298eee753de4f2471d4346412c4435885c4b7beea648d4934c6620a"},
+    {file = "syrupy-4.0.2.tar.gz", hash = "sha256:3c75ab6866580679b2cb9abe78e74c3e2011fffc6333651c6beb2a78a716ab80"},
+]
+
+[package.dependencies]
+colored = ">=1.3.92,<2.0.0"
+pytest = ">=7.0.0,<8.0.0"
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1559,4 +1584,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "257484cf5ebb01ffe1221287e84f2228b28af52e2817d72d1f5e968c4906ea03"
+content-hash = "3d4f757df8da5f026b4b3c83533099d459be0d8eea7d650c68a4f0d02a96f03e"

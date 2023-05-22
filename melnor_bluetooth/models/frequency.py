@@ -26,8 +26,7 @@ class Frequency:
         self._attr_duration_minutes = 10
         self._attr_interval_hours = 24
         self._attr_raw_start_time = int(
-            datetime.now().replace(tzinfo=get_localzone()).timestamp()
-            + date.time_shift()
+            datetime.now(tz=get_localzone()).timestamp() + date.time_shift()
         )
         self._attr_next_run_time = None
 
@@ -51,13 +50,7 @@ class Frequency:
     def _compute_dates(self):
         # Set the start time to the start time yesterday
         # this makes computing the next_run_time easier
-        start_time = datetime.today().replace(
-            hour=self.start_time.hour,
-            minute=self.start_time.minute,
-            second=0,
-            microsecond=0,
-            tzinfo=get_localzone(),
-        )
+        start_time = date.to_start_time(self._attr_raw_start_time)
 
         # Find the next run time by adding the frequency to the start time until it is
         # in the future. If during the loop the current date is between a candidate
@@ -121,27 +114,19 @@ class Frequency:
         """The start time of the watering"""
 
         if self._attr_raw_start_time == 0:
-            return datetime.fromtimestamp(
-                datetime.now().replace(tzinfo=get_localzone()).timestamp()
-                + float(date.time_shift())
+            return date.to_start_time(
+                int(datetime.now(tz=get_localzone()).timestamp())
             ).time()
 
         else:
             # This date we get from the device, even with the time_shift, is always
             # wrong but the time should be correcct
-            return datetime.fromtimestamp(
-                self._attr_raw_start_time - date.time_shift(), tz=get_localzone()
-            ).time()
+            return date.to_start_time(self._attr_raw_start_time).time()
 
     @start_time.setter
     def start_time(self, value: time) -> None:
-        device_date = datetime.fromtimestamp(
-            self._attr_raw_start_time - date.time_shift()
-        )
-
-        self._attr_raw_start_time = int(
-            device_date.replace(hour=value.hour, minute=value.minute).timestamp()
-            + date.time_shift()
+        self._attr_raw_start_time = date.from_start_time(
+            datetime.now().replace(hour=value.hour, minute=value.minute)
         )
 
     @property

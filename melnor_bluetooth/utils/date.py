@@ -1,14 +1,14 @@
-import datetime
 import logging
-import struct
+import time
 import zoneinfo
+from datetime import datetime, timedelta, tzinfo
 
 from tzlocal import get_localzone
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _time_offset(tz: datetime.tzinfo = get_localzone()):
+def _time_offset(tz: tzinfo = get_localzone()):
     """
     Returns the archaic timezone offset in seconds.
 
@@ -20,8 +20,8 @@ def _time_offset(tz: datetime.tzinfo = get_localzone()):
     will show bad info we don't replicate the algorithm
     """
 
-    base_time = datetime.datetime.now(tz=zoneinfo.ZoneInfo("Asia/Shanghai"))
-    local_time = datetime.datetime.now(tz=tz)
+    base_time = datetime.now(tz=zoneinfo.ZoneInfo("Asia/Shanghai"))
+    local_time = datetime.now(tz=tz)
 
     base_offset = base_time.utcoffset()
     local_offset = local_time.utcoffset()
@@ -39,36 +39,46 @@ def _time_offset(tz: datetime.tzinfo = get_localzone()):
         # TODO log or throw an exception here. caller should handle this
         return 0
 
-    return int(base_offset.total_seconds() - local_offset.total_seconds())
+    is_dst = time.daylight and time.localtime().tm_isdst > 0
+    dst_offset = timedelta(hours=1) if is_dst else timedelta(hours=0)
 
-
-def time_shift(tz: datetime.tzinfo = get_localzone()) -> int:
-    date = datetime.datetime(1970, 1, 1, tzinfo=tz).replace(fold=1)
-
-    return int(
-        (date + datetime.timedelta(seconds=-_time_offset(tz) - 946656000)).timestamp()
+    return (
+        int(base_offset.total_seconds() - local_offset.total_seconds())
+        + dst_offset.total_seconds()
     )
 
 
-def get_timestamp(tz: datetime.tzinfo = get_localzone()) -> int:
+def time_shift(tz: tzinfo = get_localzone()) -> int:
+    date = datetime(1970, 1, 1, tzinfo=tz).replace(fold=1)
+
+    return int((date + timedelta(seconds=-_time_offset(tz) - 946656000)).timestamp())
+
+
+def get_timestamp(tz: tzinfo = get_localzone()) -> int:
     """
     Returns the current timestamp as a byte array.
     """
 
-    return int(datetime.datetime.now(tz).timestamp() + time_shift(tz))
+    return int(datetime.now(tz).timestamp() + time_shift(tz))
 
 
-def get_current_time(tz: datetime.tzinfo = get_localzone()) -> datetime.datetime:
-    """
-    Returns the current date.
-    """
-
-    return datetime.datetime.fromtimestamp(get_timestamp(tz))
-
-
-def get_current_time_bytes(tz: datetime.tzinfo = get_localzone()) -> bytes:
+def to_start_time(timestamp: int, tz: tzinfo = get_localzone()) -> datetime:
     """
     Returns the current timestamp as a byte array.
     """
 
-    return struct.pack(">I", get_timestamp(tz))
+    return datetime.utcfromtimestamp(
+        timestamp,
+    ).replace(
+        tzinfo=get_localzone()
+    ) - timedelta(seconds=time_shift())
+
+
+def from_start_time(timestamp: datetime) -> int:
+    """
+    Returns the current timestamp as a byte array.
+    """
+
+    return int(
+        timestamp.replace(tzinfo=zoneinfo.ZoneInfo("UTC")).timestamp() + time_shift()
+    )

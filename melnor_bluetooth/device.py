@@ -419,7 +419,7 @@ class Device:
         if updated_at is not None:
             await self._connection.write_gatt_char(
                 updated_at.handle,
-                date.get_current_time_bytes(),
+                struct.pack(">I", date.get_timestamp()),
                 True,
             )
 

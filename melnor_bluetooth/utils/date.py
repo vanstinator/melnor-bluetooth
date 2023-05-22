@@ -1,7 +1,7 @@
 import logging
 import time
 import zoneinfo
-from datetime import UTC, datetime, timedelta, tzinfo
+from datetime import datetime, timedelta, tzinfo
 
 from tzlocal import get_localzone
 
@@ -79,4 +79,6 @@ def from_start_time(timestamp: datetime) -> int:
     Returns the current timestamp as a byte array.
     """
 
-    return int(timestamp.replace(tzinfo=UTC).timestamp() + time_shift())
+    return int(
+        timestamp.replace(tzinfo=zoneinfo.ZoneInfo("UTC")).timestamp() + time_shift()
+    )

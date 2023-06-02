@@ -258,8 +258,14 @@ class Device:
 
     async def _read_model(self):
         """Initializes the device"""
+        if not self._is_connected:
+            return
 
-        manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
+        try:
+            manufacturer_data = await self._connection.read_gatt_char(MANUFACTURER_UUID)
+        except BleakError:
+            _LOGGER.error("Failed to read model from %s", self._mac)
+            return
 
         string = manufacturer_data.decode("utf-8")
 
@@ -351,14 +357,23 @@ class Device:
                 if self._is_connected:
                     raise error
 
-    async def _read(self, uuid: str) -> bytes:
+    async def _read(self, uuid: str) -> bytes | None:
         """Reads the given characteristic from the device"""
-        return await self._connection.read_gatt_char(uuid)
+        if not self._is_connected:
+            return
+
+        try:
+            return await self._connection.read_gatt_char(uuid)
+        except BleakError:
+            _LOGGER.error("Failed to read %s from %s", uuid, self._mac)
 
     async def _unsafe_push_state(self) -> None:
         """Pushes the new state of the device to the device. WARNING: This
         function runs without an internal lock. Public callers should use `push_state`
         instead"""
+
+        if not self._is_connected:
+            return
 
         on_off = self._connection.services.get_characteristic(
             VALVE_MANUAL_SETTINGS_UUID

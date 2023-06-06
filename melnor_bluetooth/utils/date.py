@@ -67,10 +67,10 @@ def to_start_time(timestamp: int, tz: tzinfo = get_localzone()) -> datetime:
     Returns the current timestamp as a byte array.
     """
 
-    return datetime.utcfromtimestamp(
+    return datetime.fromtimestamp(
         timestamp,
     ).replace(
-        tzinfo=get_localzone()
+        tzinfo=tz
     ) - timedelta(seconds=time_shift())
 
 
@@ -79,6 +79,4 @@ def from_start_time(timestamp: datetime) -> int:
     Returns the current timestamp as a byte array.
     """
 
-    return int(
-        timestamp.replace(tzinfo=zoneinfo.ZoneInfo("UTC")).timestamp() + time_shift()
-    )
+    return int(timestamp.timestamp() + time_shift())

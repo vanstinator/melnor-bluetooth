@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import struct
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 
 from tzlocal import get_localzone
 
@@ -48,31 +48,51 @@ class Frequency:
         )
 
     def _compute_dates(self):
-        # Set the start time to the start time yesterday
-        # this makes computing the next_run_time easier
+        if (
+            self._attr_raw_start_time == 0
+            or self._attr_interval_hours == 0
+            or self._attr_duration_minutes == 0
+        ):
+            self._attr_next_run_time = None
+            self._attr_is_watering = False
+            return
+
+        # Get the actual date for the start time
         start_time = date.to_start_time(self._attr_raw_start_time)
+        start_time_seconds = start_time.timestamp()
+        current_time_seconds = datetime.now(tz=get_localzone()).timestamp()
 
-        # Find the next run time by adding the frequency to the start time until it is
-        # in the future. If during the loop the current date is between a candidate
-        # next_run_time + duration, set is_in_schedule to true
-        self._attr_next_run_time = start_time
-        self._attr_is_watering = False
+        # The device clock could have the start time as years ago, so we need to
+        # calculate the next run time based on the current time
+        interval_seconds = self._attr_interval_hours * 3600
+        seconds_since_start_time = current_time_seconds - start_time_seconds
+        remainder_seconds = seconds_since_start_time % (interval_seconds)
 
-        now = datetime.now().replace(tzinfo=get_localzone())
-        while self._attr_next_run_time < now:
-            if (
-                self._attr_next_run_time
-                < now
-                < self._attr_next_run_time + timedelta(minutes=self.duration_minutes)
-            ):
-                self._attr_is_watering = True
-                self._attr_schedule_end = self._attr_next_run_time + timedelta(
-                    minutes=self._attr_duration_minutes
-                )
+        last_run_time_seconds = current_time_seconds - remainder_seconds
+        next_run_time_seconds = last_run_time_seconds + (interval_seconds)
 
-                break
+        if (
+            last_run_time_seconds + (self._attr_duration_minutes * 60)
+            > current_time_seconds
+        ):
+            self._attr_is_watering = True
+            self._attr_next_run_time = datetime.fromtimestamp(
+                last_run_time_seconds, tz=get_localzone()
+            )
+            self._attr_schedule_end = datetime.fromtimestamp(
+                last_run_time_seconds + (self._attr_duration_minutes * 60),
+                tz=get_localzone(),
+            )
 
-            self._attr_next_run_time += timedelta(hours=self._attr_interval_hours)
+        else:
+            self._attr_is_watering = False
+            self._attr_next_run_time = datetime.fromtimestamp(
+                next_run_time_seconds, tz=get_localzone()
+            )
+            self._attr_schedule_end = datetime.fromtimestamp(
+                next_run_time_seconds + (self._attr_duration_minutes * 60),
+                tz=get_localzone(),
+            )
 
     def update_state(self, payload: bytes):
         """Update the state of the frequency from the payload"""
@@ -97,6 +117,7 @@ class Frequency:
         # The Melnor app crashes if the duration is greater than 360 minutes
         value = min([value, 360])
         self._attr_duration_minutes = value
+        self._compute_dates()
 
     @property
     def interval_hours(self) -> int:
@@ -108,6 +129,7 @@ class Frequency:
         # The Melnor app crashes if the frequency is greater than 168 hours
         value = min([value, 168])
         self._attr_interval_hours = value
+        self._compute_dates()
 
     @property
     def start_time(self) -> time:
@@ -126,8 +148,13 @@ class Frequency:
     @start_time.setter
     def start_time(self, value: time) -> None:
         self._attr_raw_start_time = date.from_start_time(
-            datetime.now().replace(hour=value.hour, minute=value.minute)
+            datetime.now().replace(
+                hour=value.hour,
+                minute=value.minute,
+                microsecond=0,
+            )
         )
+        self._compute_dates()
 
     @property
     def is_watering(self) -> bool:

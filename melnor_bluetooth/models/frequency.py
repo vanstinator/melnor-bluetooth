@@ -136,14 +136,11 @@ class Frequency:
         """The start time of the watering"""
 
         if self._attr_raw_start_time == 0:
-            return date.to_start_time(
-                int(datetime.now(tz=get_localzone()).timestamp())
-            ).time()
+            self._attr_raw_start_time = date.from_start_time(datetime.now())
 
-        else:
-            # This date we get from the device, even with the time_shift, is always
-            # wrong but the time should be correcct
-            return date.to_start_time(self._attr_raw_start_time).time()
+        # This date we get from the device, even with the time_shift, is always
+        # wrong but the time should be correcct
+        return date.to_start_time(self._attr_raw_start_time).time()
 
     @start_time.setter
     def start_time(self, value: time) -> None:

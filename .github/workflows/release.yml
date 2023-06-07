@@ -1,15 +1,17 @@
 name: Build and Release
 
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
+  push:
+    branches:
+      - main
+
+  release:
+    types: [published]
 
 jobs:
   build:
-    name: "Build"
+    name: "Release"
+    environment: release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -35,3 +37,10 @@ jobs:
 
       - name: Build
         run: poetry build
+
+      - name: Publish to PyPI
+        if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}

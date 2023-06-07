@@ -11,8 +11,10 @@ on:
 jobs:
   build:
     name: "Release"
-    environment: release
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
       - uses: actions/checkout@v2
         with:
@@ -39,8 +41,4 @@ jobs:
         run: poetry build
 
       - name: Publish to PyPI
-        if: github.event_name == 'release' || github.ref == 'refs/heads/main'
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
